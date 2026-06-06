@@ -1,0 +1,49 @@
+{
+  "temperature": 0.6,
+  "downfall": 0.7,
+  "has_precipitation": true,
+  "temperature_modifier": "none",
+  "effects": {
+    "sky_color": 7907327,
+    "fog_color": 12638463,
+    "water_color": 4159204,
+    "water_fog_color": 329011,
+    "grass_color": 8368696,
+    "foliage_color": 8368696
+  },
+  "carvers": {
+    "air": []
+  },
+  "features": [
+    [],
+    [
+      "thrive:glowing_berry_juice_lake_surface",
+      "thrive:glowing_berry_juice_lake_underground"
+    ],
+    [
+      "minecraft:amethyst_geode"
+    ],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [
+
+      "thrive:lot_azalea_tree",
+
+      "minecraft:glow_lichen",
+      "minecraft:patch_tall_grass_2",
+      "minecraft:lush_caves_ceiling_vegetation",
+      "minecraft:cave_vines",
+      "minecraft:lush_caves_vegetation",
+      "minecraft:rooted_azalea_tree",
+      "minecraft:spore_blossom",
+      "minecraft:classic_vines_cave_feature"
+    ],
+    []
+  ],
+  "spawners": {},
+  "spawn_costs": {}
+}
