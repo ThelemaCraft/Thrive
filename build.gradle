@@ -21,9 +21,7 @@ sourceSets.main.resources {
 repositories {
     // 本地 libs 文件夹（存放前置模组 jar）
     flatDir { dirs 'libs' }
-    // 可选：其他公共仓库（按需启用）
-    // mavenCentral()
-    // maven { url "https://maven.neoforged.net/releases" }
+
 }
 
 base {
@@ -88,15 +86,12 @@ configurations {
 }
 
 dependencies {
-    // 本地 libs 文件夹中的前置模组（示例）
+
     // 请将对应的 jar 文件放入项目根目录的 libs/ 文件夹中
-    // implementation name: 'architectury', version: '13.0.8-neoforge'
 
-    implementation name: 'thelemalib', version: '1.0.0'
-    //implementation name: 'thelemalib-1.0.0'
+    implementation files('libs/thelemalib-1.0.0.jar')
 
-
-    implementation name: 'TerraBlender-neoforge-1.21.1-4.1.0.8'
+    implementation files('libs/TerraBlender-neoforge-1.21.1-4.1.0.8.jar')
 
 }
 

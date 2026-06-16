@@ -1,9 +1,9 @@
 package com.thelema.thrive;
 
-import com.thelema.thrive.register.FluidRegister;
-import com.thelema.thrive.world.biome.region.TRegions;
-import com.thelema.thrive.world.biome.surface.TSurfaceRules;
+import com.thelema.thrive.register.*;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
@@ -13,6 +13,10 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 @Mod(ThriveMod.MOD_ID)
 public class ThriveMod {
 
@@ -20,13 +24,31 @@ public class ThriveMod {
 
     public static final Logger LOGGER = LogUtils.getLogger();
 
+    static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    public static void schedule(int ticks, Runnable task) {
+        scheduler.schedule(() -> {
+            MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+            if (server != null) {
+                server.execute(task); // 主线程执行
+            }
+        }, ticks * 50L, TimeUnit.MILLISECONDS);
+    }
 
     public ThriveMod(IEventBus bus, ModContainer cont) {
 
 
+        ItemRegister.register(bus);
+        BlockRegister.register(bus);
+        BlockEntityRegister.register(bus);
         FluidRegister.register(bus);
+        FeatureRegister.register(bus);
+        TabRegister.register(bus);
+        ItemCompRegister.register(bus);
+        EffectRegister.register(bus);
 
 
+
+        
 
         bus.addListener(this::commonSetup);
     }
@@ -35,9 +57,9 @@ public class ThriveMod {
 
         event.enqueueWork(() -> {
 
-            TRegions.init();
-
-            TSurfaceRules.init();
+            RegionRegister.register();
+            TipRegister.register();
+            SurfaceRuleRegister.register();
         });
 
     }

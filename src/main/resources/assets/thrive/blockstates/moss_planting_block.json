@@ -1,0 +1,12 @@
+{
+  "variants": {
+    "moisture=0": { "model": "thrive:block/moss_planting_block" },
+    "moisture=1": { "model": "thrive:block/moss_planting_block" },
+    "moisture=2": { "model": "thrive:block/moss_planting_block" },
+    "moisture=3": { "model": "thrive:block/moss_planting_block" },
+    "moisture=4": { "model": "thrive:block/moss_planting_block" },
+    "moisture=5": { "model": "thrive:block/moss_planting_block" },
+    "moisture=6": { "model": "thrive:block/moss_planting_block" },
+    "moisture=7": { "model": "thrive:block/moss_planting_block" }
+  }
+}

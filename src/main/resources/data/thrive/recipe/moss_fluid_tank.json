@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "thrive:moss_frame_empty" },
+    { "item": "minecraft:glass" }
+  ],
+  "result": {
+    "id": "thrive:moss_fluid_tank",
+    "count": 1
+  }
+}

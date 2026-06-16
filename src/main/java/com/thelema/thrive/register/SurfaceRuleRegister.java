@@ -1,26 +1,18 @@
-package com.thelema.thrive.world.biome.surface;
+package com.thelema.thrive.register;
 
 import com.thelema.thrive.ThriveMod;
-import com.thelema.thrive.world.biome.TBiomes;
+import com.thelema.thrive.resourcekey.TBiomes;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.SurfaceRules;
 import net.minecraft.world.level.levelgen.placement.CaveSurface;
 import terrablender.api.SurfaceRuleManager;
 
-public class TSurfaceRules {
+public class SurfaceRuleRegister {
 
-    public static void init(){
+    public static void register(){
 
         overworld(mossland());
 
-    }
-
-    private static void overworld(SurfaceRules.RuleSource rule){
-        SurfaceRuleManager.addSurfaceRules(
-                SurfaceRuleManager.RuleCategory.OVERWORLD,
-                ThriveMod.MOD_ID,
-                rule
-        );
     }
 
     static SurfaceRules.RuleSource mossland() {
@@ -47,6 +39,17 @@ public class TSurfaceRules {
                         // 陡坡/悬崖（侧面的裸露部分）
                         SurfaceRules.ifTrue(SurfaceRules.steep(), MOSS_BLOCK)
                 )
+        );
+    }
+
+
+
+
+    private static void overworld(SurfaceRules.RuleSource rule){
+        SurfaceRuleManager.addSurfaceRules(
+                SurfaceRuleManager.RuleCategory.OVERWORLD,
+                ThriveMod.MOD_ID,
+                rule
         );
     }
 

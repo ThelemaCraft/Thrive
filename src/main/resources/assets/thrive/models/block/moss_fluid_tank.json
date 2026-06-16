@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "thrive:block/moss_fluid_tank"
+  },
+  "render_type": "minecraft:translucent"
+}

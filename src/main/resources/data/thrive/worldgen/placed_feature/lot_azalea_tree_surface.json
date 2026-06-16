@@ -2,6 +2,9 @@
   "feature": "minecraft:azalea_tree",
   "placement": [
     {
+      "type": "minecraft:biome"
+    },
+    {
       "type": "minecraft:count",
       "count": 2
     },
@@ -17,17 +20,11 @@
       "heightmap": "MOTION_BLOCKING"
     },
     {
-      "type": "minecraft:biome"
-    },
-    {
       "type": "minecraft:block_predicate_filter",
       "predicate": {
         "type": "minecraft:would_survive",
         "state": {
-          "Name": "minecraft:azalea",
-          "Properties": {
-            "half": "lower"
-          }
+          "Name": "minecraft:azalea"
         }
       }
     }

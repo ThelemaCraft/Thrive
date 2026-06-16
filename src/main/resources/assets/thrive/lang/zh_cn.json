@@ -1,3 +1,37 @@
 {
+  "fluid_type.thrive.glowing_berry_juice_type": "发光浆果汁",
+
+  "fluid.thrive.glowing_berry_juice": "发光浆果汁",
+
+  "block.thrive.glowing_berry_juice_block": "发光浆果汁块",
+  "block.thrive.glowing_berry_juice": "发光浆果汁",
+  "block.thrive.moss_frame": "苔藓框架",
+  "block.thrive.moss_frame_empty": "空苔藓框架",
+  "block.thrive.moss_planting_block": "苔藓种植块",
+  "block.thrive.giant_glowing_berry": "巨型发光浆果",
+  "block.thrive.moss_fluid_tank": "苔藓储罐",
+
+  "itemGroup.thrive": "繁荣",
+  "item.thrive.glowing_berry_juice_bottle": "发光浆果汁瓶",
+  "item.thrive.glowing_berry_juice_bucket": "发光浆果汁桶",
+  "item.thrive.moss_callus": "苔藓愈伤茧",
+  "item.thrive.moss_golden_apple": "苔藓金苹果",
+  "item.thrive.enchanted_moss_golden_apple": "附魔苔藓金苹果",
+
+  "effect.thrive.berry_juice": "浆果汁",
+
+  "biome.thrive.moss_land": "苔藓地",
+  "biome.thrive.flower_sea": "花海",
+
+  "tooltip.thrive.moss_fluid_tank.item": "物品",
+  "tooltip.thrive.moss_fluid_tank.fluid": "流体",
+  "tooltip.thrive.moss_fluid_tank.empty": "空",
+
+  "tooltip.thrive.spore_blossom.desc1": "天然雾化器",
+  "tooltip.thrive.spore_blossom.desc2": "通过苔藓框架或直接接来触抽取液体，用作雾化原料",
+  "tooltip.thrive.moss_callus.desc": "能够附着在盔甲上，增加护甲和韧性",
+  "tooltip.thrive.moss_callus.armor": "护甲 +1  护甲韧性 +1",
+  "tooltip.thrive.giant_glowing_berry.desc": "易燃易爆！",
+  "tooltip.thrive.glowing_berry_juice.desc": "香甜可口，但高能易燃！"
 
 }

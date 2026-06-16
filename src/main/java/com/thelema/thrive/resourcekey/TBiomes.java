@@ -1,4 +1,4 @@
-package com.thelema.thrive.world.biome;
+package com.thelema.thrive.resourcekey;
 
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;

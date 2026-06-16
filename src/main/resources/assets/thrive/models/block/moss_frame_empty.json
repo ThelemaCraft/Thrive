@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "thrive:block/moss_frame_empty"
+  },
+  "render_type": "minecraft:cutout"
+}

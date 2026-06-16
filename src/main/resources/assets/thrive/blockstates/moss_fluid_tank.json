@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "thrive:block/moss_fluid_tank"
+    }
+  }
+}

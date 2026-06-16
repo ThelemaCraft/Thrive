@@ -1,33 +1,34 @@
-package com.thelema.thrive.world.biome.region;
+package com.thelema.thrive.register;
 
 import com.mojang.datafixers.util.Pair;
 import com.thelema.thrive.ThriveMod;
-import com.thelema.thrive.world.biome.TBiomes;
+import com.thelema.thrive.resourcekey.TBiomes;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Climate;
 import terrablender.api.*;
-import terrablender.core.TerraBlender;
-import terrablender.core.TerraBlenderNeoForge;
 
 import java.util.function.Consumer;
 import static terrablender.api.ParameterUtils.*;
 
-public class TRegions{
+public class RegionRegister {
 
     public static final ResourceLocation FLOWER_SEA_REGION = region("flower_sea_region");
     public static final ResourceLocation MOSS_LAND_REGION = region("moss_land_region");
 
-    public static void init(){
+    public static void register(){
 
+        // 苔藓地
         mossLandRegion();
+
+        // 花海
         flowerSeaRegion();
     }
 
     private static void mossLandRegion() {
-        Regions.register(new Region(MOSS_LAND_REGION, RegionType.OVERWORLD, 2) {
+        Regions.register(new Region(MOSS_LAND_REGION, RegionType.OVERWORLD, 1) {
             @Override
             public void addBiomes(Registry<Biome> registry, Consumer<Pair<Climate.ParameterPoint, ResourceKey<Biome>>> mapper) {
 
@@ -35,9 +36,9 @@ public class TRegions{
 
                 // 基础苔藓地
                 new ParameterPointListBuilder()
-                        .temperature(Temperature.span(Temperature.NEUTRAL, Temperature.WARM))
+                        .temperature(Temperature.span(Temperature.NEUTRAL, Temperature.NEUTRAL))
                         .humidity(Humidity.span(Humidity.HUMID, Humidity.WET))
-                        .continentalness(Continentalness.INLAND)
+                        .continentalness(Climate.Parameter.span(0.00F, 0.55F))
                         .erosion(Erosion.EROSION_0, Erosion.EROSION_1)
                         .depth(Depth.SURFACE, Depth.FLOOR)
                         .weirdness(Weirdness.MID_SLICE_NORMAL_ASCENDING, Weirdness.MID_SLICE_NORMAL_DESCENDING)
@@ -53,7 +54,7 @@ public class TRegions{
     }
 
     private static void flowerSeaRegion() {
-        Regions.register(new Region(FLOWER_SEA_REGION, RegionType.OVERWORLD, 2) {
+        Regions.register(new Region(FLOWER_SEA_REGION, RegionType.OVERWORLD, 1) {
             @Override
             public void addBiomes(Registry<Biome> registry, Consumer<Pair<Climate.ParameterPoint, ResourceKey<Biome>>> mapper) {
 

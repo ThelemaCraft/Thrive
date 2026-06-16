@@ -1,0 +1,28 @@
+{
+  "structures": [
+    {
+      "structure": "thrive:moss/height_pillar_1_start",
+      "weight": 1
+    },
+    {
+      "structure": "thrive:moss/height_pillar_2_start",
+      "weight": 1
+    },
+    {
+      "structure": "thrive:moss/low_pillar_1_start",
+      "weight": 1
+    },
+    {
+      "structure": "thrive:moss/low_pillar_2_start",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "salt": 987654321,
+    "frequency": 1.0,
+
+    "type": "minecraft:random_spread",
+    "spacing": 8,
+    "separation": 4
+  }
+}

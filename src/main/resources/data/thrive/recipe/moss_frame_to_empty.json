@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:smelting",
+  "ingredient": {
+    "item": "thrive:moss_frame"
+  },
+  "result": {
+    "id":"thrive:moss_frame_empty"
+  },
+  "experience": 0.2,
+  "cookingtime": 200
+}
