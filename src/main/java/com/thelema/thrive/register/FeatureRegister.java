@@ -1,7 +1,9 @@
 package com.thelema.thrive.register;
 
 import com.thelema.thrive.ThriveMod;
-import com.thelema.thrive.world.feature.GlowBerryBallPlacerFeature;
+import com.thelema.thrive.generic.world.feature.GiantGlowBerryPlacerFeature;
+import com.thelema.thrive.generic.world.feature.OreDepositFeature;
+import com.thelema.thrive.generic.world.feature.config.OreDepositConfig;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
@@ -17,8 +19,12 @@ public class FeatureRegister {
         FEATURE.register(bus);
     }
 
-    public static final Supplier<Feature<NoneFeatureConfiguration>> GIANT_GLOW_BERRY_BALL =
-            FEATURE.register("giant_glowing_berry_ball",
-                    () -> new GlowBerryBallPlacerFeature(NoneFeatureConfiguration.CODEC));
+    public static final Supplier<Feature<NoneFeatureConfiguration>> GIANT_GLOW_BERRY =
+            FEATURE.register("giant_glowing_berry",
+                    () -> new GiantGlowBerryPlacerFeature(NoneFeatureConfiguration.CODEC));
+
+    public static final Supplier<Feature<OreDepositConfig>> ORE_DEPOSIT =
+            FEATURE.register("ore_deposit",
+                    () -> new OreDepositFeature(OreDepositConfig.CODEC));
 
 }

@@ -1,7 +1,6 @@
 package com.thelema.thrive.generic.block;
 
 import com.thelema.thelemalib.data.LevelMap;
-import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.generic.blockentity.MossFluidTankBlockEntity;
 import com.thelema.thrive.register.BlockRegister;
 import com.thelema.thrive.register.EffectRegister;
@@ -18,7 +17,6 @@ import net.minecraft.world.item.*;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.phys.AABB;
@@ -34,7 +32,7 @@ import java.util.*;
 public class SporeBlossomSpray {
 
     private enum SporeType {
-        GIANT_GLOWING_BERRY_BALL(200),
+        GLOWING_BERRY(200),
         WATER_FILLED(20),
         MILK_FILLED(20),
         POTION(200);
@@ -50,7 +48,7 @@ public class SporeBlossomSpray {
     @SuppressWarnings("unchecked")
     private static Map<BlockPos, CompoundTag> getRecordMap(ServerLevel level) {
         LevelMap data = getData(level);
-        Map<BlockPos, CompoundTag> map = data.map;
+        Map<BlockPos, CompoundTag> map = data.map();
         return map;
     }
 
@@ -123,7 +121,7 @@ public class SporeBlossomSpray {
         BlockPos above = sporePos.above();
 
         switch (type) {
-            case GIANT_GLOWING_BERRY_BALL -> {
+            case GLOWING_BERRY -> {
                 for (LivingEntity e : level.getEntitiesOfClass(LivingEntity.class, area, e2 -> true))
                     e.addEffect(new MobEffectInstance(EffectRegister.BEERY_JUICE, 400, 0, false, true));
             }
@@ -173,13 +171,13 @@ public class SporeBlossomSpray {
 
     private static SporeType getTypeFromAbove(Level level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        if (state.is(BlockRegister.GIANT_GLOWING_BERRY.get())) return SporeType.GIANT_GLOWING_BERRY_BALL;
+        if (state.is(BlockRegister.GIANT_GLOWING_BERRY.get())) return SporeType.GLOWING_BERRY;
         if (state.is(BlockRegister.MOSS_FLUID_TANK.get())) {
             if (level.getBlockEntity(pos) instanceof MossFluidTankBlockEntity tank) {
                 FluidStack fluid = tank.getFluidInTank(0);
                 if (!fluid.isEmpty()) {
                     if (fluid.getFluid() == FluidRegister.GLOWING_BERRY_JUICE.stillFluid().get())
-                        return SporeType.GIANT_GLOWING_BERRY_BALL;
+                        return SporeType.GLOWING_BERRY;
                     return null;
                 }
                 ItemStack stack = tank.getStackInSlot(0);

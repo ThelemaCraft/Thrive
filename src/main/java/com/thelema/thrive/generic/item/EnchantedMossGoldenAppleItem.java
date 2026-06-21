@@ -24,4 +24,6 @@ public class EnchantedMossGoldenAppleItem extends Item {
         living.getPersistentData().putBoolean(Flags.MOSS_CALLUS, true);
         return super.finishUsingItem(stack, level, living);
     }
+
+
 }

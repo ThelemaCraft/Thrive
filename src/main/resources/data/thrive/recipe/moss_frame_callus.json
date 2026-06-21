@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shapeless",
   "ingredients": [
     { "item": "thrive:moss_frame" },
-    { "item": "thrive:giant_glowing_berry" }
+    { "tag": "thrive:has_1b_juice" }
   ],
   "result": {
     "id": "thrive:moss_callus",

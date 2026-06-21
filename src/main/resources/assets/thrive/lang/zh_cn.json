@@ -15,7 +15,6 @@
   "item.thrive.glowing_berry_juice_bottle": "发光浆果汁瓶",
   "item.thrive.glowing_berry_juice_bucket": "发光浆果汁桶",
   "item.thrive.moss_callus": "苔藓愈伤茧",
-  "item.thrive.moss_golden_apple": "苔藓金苹果",
   "item.thrive.enchanted_moss_golden_apple": "附魔苔藓金苹果",
 
   "effect.thrive.berry_juice": "浆果汁",
@@ -28,10 +27,11 @@
   "tooltip.thrive.moss_fluid_tank.empty": "空",
 
   "tooltip.thrive.spore_blossom.desc1": "天然雾化器",
-  "tooltip.thrive.spore_blossom.desc2": "通过苔藓框架或直接接来触抽取液体，用作雾化原料",
-  "tooltip.thrive.moss_callus.desc": "能够附着在盔甲上，增加护甲和韧性",
-  "tooltip.thrive.moss_callus.armor": "护甲 +1  护甲韧性 +1",
+  "tooltip.thrive.spore_blossom.desc2": "通过[苔藓框架]或[直接接触]抽取液体，用作雾化原料",
+  "tooltip.thrive.moss_callus.desc": "与任意护甲合成，赋予【苔藓】(护甲 +1  护甲韧性 +1)",
   "tooltip.thrive.giant_glowing_berry.desc": "易燃易爆！",
-  "tooltip.thrive.glowing_berry_juice.desc": "香甜可口，但高能易燃！"
+  "tooltip.thrive.glowing_berry_juice_bucket.desc": "香甜可口，但高能易燃！",
+  "tooltip.thrive.glowing_berry_juice_immersion.desc": "【浆果汁】饱食度+2, 营养值+2, 食用后获得 30s 浆果汁效果",
+  "tooltip.thrive.glowing_berry_juice_bottle.desc": "食用后获得 30s 浆果汁效果"
 
 }

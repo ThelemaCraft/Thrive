@@ -1,7 +1,7 @@
 package com.thelema.thrive.generic.fluid;
 
 import com.thelema.thelemalib.damage.DamageQueue;
-import com.thelema.thelemalib.data.T2;
+import com.thelema.thelemalib.data.tuple.T2;
 import com.thelema.thrive.register.EffectRegister;
 import com.thelema.thrive.register.FluidRegister;
 import net.minecraft.core.BlockPos;
@@ -59,7 +59,7 @@ public class FireExplodeOfBerryJuice {
     public static final int STATE_LIT = 1;
     public static final int STATE_COOLDOWN = 3;
 
-    // 标志位（存储在 T2.right 的高位）
+    // 标志位（存储在 T2.v2 的高位）
     private static final long FLAG_CONSUME_FLUID = 1L << 48;
     private static final long TIME_MASK = (1L << 48) - 1;
 
@@ -69,7 +69,7 @@ public class FireExplodeOfBerryJuice {
     // ========== 对外状态查询 ==========
     public static int getState(BlockPos pos) {
         T2<Integer, Long> entry = STATE_MAP.get(pos);
-        return entry == null ? STATE_IDLE : entry.left;
+        return entry == null ? STATE_IDLE : entry.v1;
     }
 
     // ========== 1. 点燃动画（进入 STATE_LIT） ==========
@@ -206,8 +206,8 @@ public class FireExplodeOfBerryJuice {
             long now = level.getGameTime();
             for (Map.Entry<BlockPos, T2<Integer, Long>> entry : new ArrayList<>(STATE_MAP.entrySet())) {
                 BlockPos pos = entry.getKey();
-                int state = entry.getValue().left;
-                long encoded = entry.getValue().right;
+                int state = entry.getValue().v1;
+                long encoded = entry.getValue().v2;
                 long startTick = encoded & TIME_MASK;
                 boolean consumeFluid = (encoded & FLAG_CONSUME_FLUID) != 0;
                 int elapsed = (int)(now - startTick);
@@ -220,8 +220,8 @@ public class FireExplodeOfBerryJuice {
                             doExplosion(level, pos, consumeFluid);
                             // 进入冷却状态（保留原标志）
                             long newEncoded = (now & TIME_MASK) | (consumeFluid ? FLAG_CONSUME_FLUID : 0);
-                            entry.getValue().left = STATE_COOLDOWN;
-                            entry.getValue().right = newEncoded;
+                            entry.getValue().v1 = STATE_COOLDOWN;
+                            entry.getValue().v2 = newEncoded;
                         }
                     }
                     case STATE_COOLDOWN -> {

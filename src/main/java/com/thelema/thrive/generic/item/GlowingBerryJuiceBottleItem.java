@@ -1,5 +1,6 @@
 package com.thelema.thrive.generic.item;
 
+import com.thelema.thrive.register.EffectRegister;
 import com.thelema.thrive.register.FluidRegister;
 import com.thelema.thrive.register.ItemRegister;
 import net.minecraft.core.BlockPos;
@@ -7,6 +8,7 @@ import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
@@ -34,6 +36,7 @@ public class GlowingBerryJuiceBottleItem extends Item {
                         .alwaysEdible()
                         .fast()
                         .usingConvertsTo(Items.GLASS_BOTTLE)
+                        .effect(() -> new MobEffectInstance(EffectRegister.BEERY_JUICE, 600), 1.0f)
                         .build()
                 )
         );

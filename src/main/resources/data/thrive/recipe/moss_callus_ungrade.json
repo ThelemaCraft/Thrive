@@ -8,14 +8,11 @@
       "item": "thrive:moss_callus"
     }
   ],
+  "result": { "id": "minecraft:dirt" },
   "handle": [
     {
-      "type": "set_result",
-      "new_item_id": "minecraft:air"
-    },
-    {
-      "type": "if",
-      "if": [
+      "type": "branch_sync",
+      "condition": [
         {
           "type": "tag",
           "tag": "thelemalib:any_armor"
@@ -28,39 +25,12 @@
           "reverse": true
         }
       ],
-      "then": [
-        {
-          "type": "set_result"
-        },
-        {
-          "type": "modify_armor",
-          "slot": "auto",
-          "op": "+",
-          "value": 1
-        },
-        {
-          "type": "modify_armor_toughness",
-          "slot": "auto",
-          "op": "+",
-          "value": 1
-        },
-        {
-          "type": "modify_custom",
-          "key": "thrive_moss_cullus",
-          "op": "=",
-          "value": true
-        },
-        {
-          "type": "modify_max_damage",
-          "op": "*",
-          "value": 1.2
-        },
-        {
-          "type": "sound",
-          "sound_id": "minecraft:entity.slime.squish",
-          "volume": 1.0,
-          "pitch": 1.0
-        }
+      "true": [
+        { "type": "modify_armor", "slot": "auto", "op": "+", "value": 1 },
+        { "type": "modify_armor_toughness", "slot": "auto", "op": "+", "value": 1 },
+        { "type": "modify_custom_data", "key": "thrive_moss_cullus", "op": "=", "value": true },
+        { "type": "modify_max_damage", "op": "*", "value": 1.2 },
+        { "type": "sound", "sound_id": "minecraft:entity.slime.squish", "volume": 1.0, "pitch": 1.0 }
       ]
     }
   ]

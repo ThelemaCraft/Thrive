@@ -1,17 +1,26 @@
 package com.thelema.thrive.generic.blockentity;
 
-import com.thelema.thrive.register.BlockEntityRegister;
-import com.thelema.thrive.register.FluidRegister;
-import com.thelema.thrive.register.ItemRegister;
+import com.thelema.thelemalib.item.ItemCustomData;
+import com.thelema.thelemalib.tip.ToolTip;
+import com.thelema.thrive.register.*;
+import com.thelema.thrive.util.Flags;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.Connection;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.commands.DamageCommand;
+import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.ArmorItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.fluids.FluidStack;
@@ -20,6 +29,9 @@ import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MossFluidTankBlockEntity extends BlockEntity implements IFluidHandler, IItemHandler {
 
@@ -70,14 +82,7 @@ public class MossFluidTankBlockEntity extends BlockEntity implements IFluidHandl
         if (stack.isEmpty()) return;
         Item item = stack.getItem();
 
-        if (item == Items.GOLDEN_APPLE) {
-            if (fluidAmount >= 1000) {
-                tank.drain(1000, FluidAction.EXECUTE);
-                inventory.extractItem(0, 1, false);
-                inventory.insertItem(0, new ItemStack(ItemRegister.MOSS_GOLDEN_APPLE.get()), false);
-                syncToClient();
-            }
-        } else if (item == Items.ENCHANTED_GOLDEN_APPLE) {
+        if (item == Items.ENCHANTED_GOLDEN_APPLE) {
             if (fluidAmount >= 4000) {
                 FluidStack drained = tank.drain(4000, FluidAction.EXECUTE);
                 if (drained.getAmount() == 4000) {
@@ -86,8 +91,8 @@ public class MossFluidTankBlockEntity extends BlockEntity implements IFluidHandl
                     syncToClient();
                 }
             }
-        }else if (item instanceof ArmorItem armorItem){
-            if (fluidAmount >= 1000){
+        } else if (item instanceof ArmorItem) {
+            if (fluidAmount >= 1000 && ItemCustomData.hasFlag(stack, Flags.MOSS_CALLUS)) {
                 FluidStack drained = tank.drain(1000, FluidAction.EXECUTE);
                 if (drained.getAmount() == 1000) {
                     ItemStack armorStack = inventory.getStackInSlot(0);
@@ -101,10 +106,31 @@ public class MossFluidTankBlockEntity extends BlockEntity implements IFluidHandl
                     }
                 }
             }
+        } else {
+            if (fluidAmount >= 1000) {
+                tank.drain(1000, FluidAction.EXECUTE);
+                // 食物浸泡
+                FoodProperties f = stack.get(DataComponents.FOOD);
+                if (f != null) {
+                    f.effects().add(new FoodProperties.PossibleEffect(() -> new MobEffectInstance(EffectRegister.BEERY_JUICE, 600), 1.0f));
+                    FoodProperties nf = new FoodProperties(
+                            f.nutrition() + 2,
+                            f.saturation() + 2,
+                            f.canAlwaysEat(),
+                            f.eatSeconds(),
+                            f.usingConvertsTo(),
+                            f.effects()
+                    );
+                    stack.set(DataComponents.FOOD, nf);
+                    List<Component> build = new ToolTip(new ArrayList<Component>())
+                            .trans("tooltip.thrive.glowing_berry_juice_immersion.desc").color(ChatFormatting.GOLD).build();
+                    stack.set(DataComponents.LORE, new ItemLore(build));
+                }
+            }
         }
+
     }
 
-    // 用于适配的接口方法
     // ---------- 客户端同步核心方法 ----------
     public void syncToClient() {
         if (level != null && !level.isClientSide) {
@@ -116,7 +142,9 @@ public class MossFluidTankBlockEntity extends BlockEntity implements IFluidHandl
 
     // ---------- IFluidHandler 实现（委托给 tank） ----------
     @Override
-    public int getTanks() { return tank.getTanks(); }
+    public int getTanks() {
+        return tank.getTanks();
+    }
 
     @Override
     public @NotNull FluidStack getFluidInTank(int tank) {
@@ -150,7 +178,9 @@ public class MossFluidTankBlockEntity extends BlockEntity implements IFluidHandl
 
     // ---------- IItemHandler 实现（委托给 inventory） ----------
     @Override
-    public int getSlots() { return inventory.getSlots(); }
+    public int getSlots() {
+        return inventory.getSlots();
+    }
 
     @Override
     public @NotNull ItemStack getStackInSlot(int slot) {

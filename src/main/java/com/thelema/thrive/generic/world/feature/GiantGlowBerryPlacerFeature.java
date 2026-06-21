@@ -1,4 +1,4 @@
-package com.thelema.thrive.world.feature;
+package com.thelema.thrive.generic.world.feature;
 
 import com.mojang.serialization.Codec;
 import com.thelema.thrive.register.BlockRegister;
@@ -8,9 +8,9 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
-public class GlowBerryBallPlacerFeature extends Feature<NoneFeatureConfiguration> {
+public class GiantGlowBerryPlacerFeature extends Feature<NoneFeatureConfiguration> {
 
-    public GlowBerryBallPlacerFeature(Codec<NoneFeatureConfiguration> codec) {
+    public GiantGlowBerryPlacerFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
     }
 

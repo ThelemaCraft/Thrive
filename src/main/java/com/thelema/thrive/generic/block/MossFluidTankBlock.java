@@ -10,6 +10,8 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.ItemInteractionResult;
@@ -132,6 +134,9 @@ public class MossFluidTankBlock extends BaseEntityBlock {
     protected void randomTick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
         if (level.getBlockEntity(pos) instanceof MossFluidTankBlockEntity tank) {
             tank.triggerItemEffect();
+
+            // 蜂蜜喝掉的音效
+            level.playSound(null, pos, SoundEvents.HONEY_DRINK, SoundSource.BLOCKS);
         }
     }
 

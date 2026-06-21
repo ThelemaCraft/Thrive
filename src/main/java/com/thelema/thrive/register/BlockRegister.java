@@ -3,6 +3,7 @@ package com.thelema.thrive.register;
 import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.generic.block.GiantGlowingBerry;
 import com.thelema.thrive.generic.block.MossFluidTankBlock;
+import com.thelema.thrive.generic.block.MossFrameEmpty;
 import com.thelema.thrive.generic.block.MossPlantingBlock;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -45,13 +46,7 @@ public class BlockRegister {
                 .requiresCorrectToolForDrops() // 可选：需要合适工具
         ));
 
-        MOSS_FRAME_EMPTY = registerWithItem("moss_frame_empty",
-                () -> new Block(Block.Properties.of()
-                        .strength(4.0F)
-                        .sound(SoundType.WOOD)
-                        .requiresCorrectToolForDrops()
-                        .noOcclusion()
-                ));
+        MOSS_FRAME_EMPTY = registerWithItem("moss_frame_empty", MossFrameEmpty::new);
 
         MOSS_PLANTING_BLOCK = registerWithItem("moss_planting_block", MossPlantingBlock::new);
 

@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    { "item": "minecraft:moss_block" },
+    { "tag": "thrive:has_1b_juice" }
+  ],
+  "result": {
+    "id": "thrive:moss_frame",
+    "count": 1
+  }
+}

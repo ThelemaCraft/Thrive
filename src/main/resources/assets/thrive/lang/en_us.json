@@ -17,7 +17,6 @@
   "item.thrive.glowing_berry_juice_bottle": "Glowing Berry Juice Bottle",
   "item.thrive.glowing_berry_juice_bucket": "Glowing Berry Juice Bucket",
   "item.thrive.moss_callus": "Moss Callus",
-  "item.thrive.moss_golden_apple": "Moss Golden Apple",
   "item.thrive.enchanted_moss_golden_apple": "Enchanted Moss Golden Apple",
 
   "effect.thrive.berry_juice": "Berry Juice",
@@ -31,8 +30,9 @@
 
   "tooltip.thrive.spore_blossom.desc1": "Natural atomizer",
   "tooltip.thrive.spore_blossom.desc2": "draws liquid through direct contact via moss framework, used as atomization material",
-  "tooltip.thrive.moss_callus.desc": "Can be attached to armor, increasing armor and toughness",
-  "tooltip.thrive.moss_callus.armor": "Armor+1  Armor Toughness +1",
+  "tooltip.thrive.moss_callus.desc": "Attached to armor, apply [Moss](Armor+1  Armor Toughness +1)",
   "tooltip.thrive.giant_glowing_berry.desc": "Flammable and Explosive!",
-  "tooltip.thrive.glowing_berry_juice.desc": "Sweet and tasty, yet highly flammable!"
+  "tooltip.thrive.glowing_berry_juice_bucket.desc": "Sweet and tasty, yet highly flammable!",
+  "tooltip.thrive.glowing_berry_juice_immersion.desc": "[Juice]Nutrition+2, Saturation+2, 30s Glowing Berry Juice",
+  "tooltip.thrive.glowing_berry_juice_bottle.desc": "30s Glowing Berry Juice"
 }
