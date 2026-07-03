@@ -1,152 +1,271 @@
+// MossFrameEmpty 简化版（核心改动：统一使用 LevelMap.sync() 全量同步）
+
 package com.thelema.thrive.generic.block;
 
-import com.thelema.thelemalib.data.BlockMap;
+import com.thelema.thelemalib.data.LevelMap;
 import com.thelema.thelemalib.item.ItemCustomData;
-import com.thelema.thrive.ThriveMod;
+import com.thelema.thrive.config.TConfig;
 import com.thelema.thrive.register.BlockRegister;
+import com.thelema.thrive.util.Flags;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.ItemTags;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
 
-import static com.thelema.thrive.util.Flags.CONTAINED_MOSS_FRAME;
+import java.util.List;
 
 @EventBusSubscriber
 public class MossFrameEmpty extends Block {
+
+    public static final String KEY = Flags.CONTAINED_MOSS_FRAME;
+
+    // 状态常量
+    public static final short STATE_NONE   = 0;
+    public static final short STATE_MARKED = 1;   // 显示框架
+    public static final short STATE_HIDDEN = 2;   // 隐藏框架
 
     public MossFrameEmpty() {
         super(Properties.of()
                 .instabreak()
                 .sound(SoundType.WOOD)
-                .requiresCorrectToolForDrops()
                 .noOcclusion());
     }
 
-    /** 标记位置 */
-    public static void markContained(ServerLevel level, BlockPos pos) {
-        BlockMap<Boolean> bm = BlockMap.common(level, CONTAINED_MOSS_FRAME);
-        bm.put(pos, true);
-        bm.setDirty();
-        bm.sync();
+    /** 获取当前维度的 LevelMap */
+    private static LevelMap<BlockPos, Short> map(ServerLevel level) {
+        return LevelMap.common(level, KEY);
     }
 
-    /** 检查该位置是否被记录 */
-    public static boolean isContained(ServerLevel level, BlockPos pos) {
-        return BlockMap.<Boolean>common(level, CONTAINED_MOSS_FRAME).containsKey(pos);
+    // ───── 状态读写 ─────
+
+    public static short getState(BlockPos pos, ServerLevel level) {
+        return map(level).getOrDefault(pos, STATE_NONE);
     }
 
-    /** 移除记录 */
-    public static void removeContained(ServerLevel level, BlockPos pos) {
-        BlockMap<Boolean> bm = BlockMap.common(level, CONTAINED_MOSS_FRAME);
-        bm.remove(pos);
-        bm.setDirty();
-        bm.sync();
+    public static boolean hasMark(BlockPos pos, ServerLevel level) {
+        return getState(pos, level) == STATE_MARKED;
     }
 
-    // 放置时标记
+    public static boolean hasAnyMark(BlockPos pos, ServerLevel level) {
+        short s = getState(pos, level);
+        return s == STATE_MARKED || s == STATE_HIDDEN;
+    }
+
+    // ───── 修改 + 全量同步 ─────
+
+    /** 设置标记并增量同步 */
+    public static void mark(BlockPos pos, ServerLevel level) {
+        map(level).put(pos, STATE_MARKED);
+        map(level).syncPut(STATE_MARKED, pos);
+    }
+
+    /** 设置隐藏标记，客户端侧移除同步 */
+    public static void markHidden(BlockPos pos, ServerLevel level) {
+        map(level).put(pos, STATE_HIDDEN);
+        map(level).syncPut(STATE_HIDDEN, pos);
+    }
+
+    /** 剪刀切换隐藏 / 恢复显示 */
+    public static void toggleHidden(BlockPos pos, ServerLevel level) {
+        LevelMap<BlockPos, Short> m = map(level);
+        short current = m.getOrDefault(pos, STATE_NONE);
+        if (current == STATE_MARKED) {
+            m.put(pos, STATE_HIDDEN);
+            m.syncPut(STATE_HIDDEN, pos);
+        } else if (current == STATE_HIDDEN) {
+            m.put(pos, STATE_MARKED);
+            m.syncPut(STATE_MARKED, pos);
+        }
+    }
+
+    /** 移除标记，客户端侧同步删除 */
+    public static void removeMark(BlockPos pos, ServerLevel level) {
+        map(level).remove(pos);
+        map(level).syncRemove(pos);
+    }
+
+    /** 全量同步（仅用于登录时） */
+    public static void syncAll(ServerLevel level) {
+        LevelMap<BlockPos, Short> m = map(level);
+        m.sync();   // 直接全量发送，客户端替换整个缓存
+    }
+
+
+    // ───── 事件处理（逻辑不变，仅替换同步调用）─────
+
     @SubscribeEvent
     public static void onBlockPlaced(BlockEvent.EntityPlaceEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
         ItemStack stack = player.getMainHandItem();
         if (stack.isEmpty()) return;
-
-        // 检查是否有 thrive_contained_moss_frame 标记
-        if (!ItemCustomData.get(stack).getBoolean(CONTAINED_MOSS_FRAME)) return;
-
         BlockPos pos = event.getPos();
-        ServerLevel level = (ServerLevel) event.getLevel();
-        MossFrameEmpty.markContained(level, pos);
+
+        LevelAccessor accessor = event.getLevel();
+        if (accessor.getBlockState(pos).is(Blocks.AIR)) {
+            if (!accessor.isClientSide()) {
+                removeMark(pos, (ServerLevel) accessor);   // 内部已调用 syncAll
+            }
+        }
+
+        byte markState = ItemCustomData.get(stack).getByte(Flags.CONTAINED_MOSS_FRAME);
+        if (markState != 0 && !accessor.isClientSide()) {
+            ServerLevel level = (ServerLevel) accessor;
+            if (markState == 1) {
+                mark(pos, level);
+            } else if (markState == 2) {
+                markHidden(pos, level);
+            }
+        }
     }
 
-    // 左键立刻破坏，掉落带有标记的方块物品
     @SubscribeEvent
     public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
-        // 只在服务端执行
         if (event.getLevel().isClientSide()) return;
-
-        ServerLevel level = (ServerLevel)event.getLevel();
+        ServerLevel level = (ServerLevel) event.getLevel();
         BlockPos pos = event.getPos();
         BlockState state = level.getBlockState(pos);
 
-        // 检查是否被记录（即玩家放置时带 NBT的）
-        if (!isContained(level, pos)) {
-            BlockMap<Boolean> common = BlockMap.<Boolean>common(level, CONTAINED_MOSS_FRAME);
-            System.out.println(common.map().getTag());
-            return;
+        if (!hasAnyMark(pos, level)) return;
+
+        short currentState = getState(pos, level);
+        if (!event.getEntity().isCreative()){
+            level.destroyBlock(pos, false);
         }
 
-        // 1. 移除方块（不触发掉落）
-        level.destroyBlock(pos, false);
-
-        // 2. 生成带标记的物品
         ItemStack stack = new ItemStack(state.getBlock());
-        ItemCustomData.get(stack).putBoolean(CONTAINED_MOSS_FRAME, true);
-
-        // 3. 掉落物品
+        ItemCustomData.update(stack, tag -> tag.putByte(Flags.CONTAINED_MOSS_FRAME, (byte) currentState));
         Block.popResource(level, pos, stack);
 
-        // 4. 移除记录
-        removeContained(level, pos);
-
-        event.setCanceled(true);
+        removeMark(pos, level);   // 内部全量同步
     }
 
-    //客户端同步
     @SubscribeEvent
     public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        Player player = event.getEntity();
-        Level level = player.level();
-        if (level.isClientSide()) return; // 仅在服务端执行
-
-        // 如果服务器有多个维度，需要为每个维度同步，或者 sync() 自动处理
-        ServerLevel serverLevel = (ServerLevel) level;
-        BlockMap<Boolean> bm = BlockMap.common(serverLevel, CONTAINED_MOSS_FRAME);
-        bm.sync(); // 假设 sync() 会向所有已连接玩家发送更新
+        Level l = event.getEntity().level();
+        if (l instanceof ServerLevel sl) syncAll(sl);
     }
 
-    // 左键立刻破坏
     @SubscribeEvent
-    public static void onRightClick(PlayerInteractEvent.RightClickBlock event) {
-        if (!(event.getLevel() instanceof ServerLevel level)) return;
-
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
         Player player = event.getEntity();
         ItemStack hand = event.getItemStack();
         BlockPos pos = event.getPos();
 
-        // 斧头
-        if (!hand.is(ItemTags.AXES)) return;
-        // 标记
-        if (!isContained(level, pos)) return;
-        // 掉落框架
-        Block.popResource(level, pos, new ItemStack(BlockRegister.MOSS_FRAME_EMPTY.get()));
-        // 移除标记
-        removeContained(level, pos);
-        // 声音
-        level.playSound(null, pos, SoundEvents.AXE_STRIP, SoundSource.BLOCKS, 1.0f, 1.0f);
-        // 耐久损耗
-        hand.hurtAndBreak(1, player, EquipmentSlot.MAINHAND);
+        if (!(event.getLevel() instanceof ServerLevel level)) {
+            if (hand.is(BlockRegister.MOSS_FRAME_EMPTY.value().asItem()) && player.isCrouching()) {
+                event.setCanceled(true);
+            }
+            return;
+        }
+
+        // 潜行 + 框架 → 标记
+        if (hand.is(BlockRegister.MOSS_FRAME_EMPTY.value().asItem()) && player.isCrouching()) {
+            List<? extends String> blacklist = TConfig.CONFIG.mossFrameEmptyBlackList.get();
+            ResourceLocation location = BuiltInRegistries.BLOCK.getKey(level.getBlockState(pos).getBlock());
+
+            if (blacklist.contains(location.toString())) {
+                player.displayClientMessage(Component.literal("§cCannot mark " + location + "!"), true);
+                event.setCanceled(true);
+                return;
+            }
+
+            if (!hasMark(pos, level)) {
+                event.setCanceled(true);
+                hand.shrink(1);
+                level.playSound(null, pos, SoundEvents.WOOD_PLACE, SoundSource.BLOCKS);
+                mark(pos, level);   // 内部 syncAll
+            }
+            return;
+        }
+
+        // 斧头移除标记
+        if (hand.is(ItemTags.AXES) && hasAnyMark(pos, level)) {
+            Block.popResource(level, pos, new ItemStack(BlockRegister.MOSS_FRAME_EMPTY.get()));
+            removeMark(pos, level);   // syncAll
+            level.playSound(null, pos, SoundEvents.AXE_STRIP, SoundSource.BLOCKS, 1.0f, 1.0f);
+            hand.hurtAndBreak(1, player, EquipmentSlot.MAINHAND);
+            event.setCanceled(true);
+            return;
+        }
+
+        // 剪刀切换隐藏 / 恢复
+        if (hand.is(Items.SHEARS) && hasAnyMark(pos, level)) {
+            toggleHidden(pos, level);   // syncAll
+            level.playSound(null, pos, SoundEvents.SHEEP_SHEAR, SoundSource.BLOCKS, 1.0F, 1.0F);
+            hand.hurtAndBreak(1, player, EquipmentSlot.MAINHAND);
+            event.setCanceled(true);
+            short state = getState(pos, level);
+            if (state == STATE_HIDDEN) {
+                player.displayClientMessage(Component.literal("§7框架已隐藏"), true);
+            } else if (state == STATE_MARKED) {
+                player.displayClientMessage(Component.literal("§a框架已恢复显示"), true);
+            }
+        }
     }
 
+    @SubscribeEvent
+    public static void onItemTick(EntityTickEvent.Pre event) {
+        if (!(event.getEntity() instanceof ItemEntity item)) return;
+        Level level = item.level();
+        if (level.isClientSide()) return;
+
+        ItemStack stack = item.getItem();
+        byte markState = ItemCustomData.get(stack).getByte(Flags.CONTAINED_MOSS_FRAME);
+        if (markState == 0) return;
+
+        if (item.getDeltaMovement().length() < 0.5) return;
+
+        Block block = Block.byItem(stack.getItem());
+        if (block == Blocks.AIR) return;
+
+        BlockPos pos = item.blockPosition();
+        BlockState here = level.getBlockState(pos);
+        BlockState below = level.getBlockState(pos.below());
+
+        if (below.isAir()) return;
+
+        BlockPos placePos = null;
+        if (here.isAir() || here.canBeReplaced()) {
+            placePos = pos;
+        } else {
+            BlockPos upPos = pos.above();
+            BlockState upState = level.getBlockState(upPos);
+            if (upState.isAir() || upState.canBeReplaced()) {
+                placePos = upPos;
+            }
+        }
+        if (placePos == null) return;
+
+        if (level instanceof ServerLevel sl) {
+            level.setBlock(placePos, block.defaultBlockState(), 3);
+            level.playSound(null, placePos, SoundEvents.WOOD_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
+            if (markState == 1) {
+                mark(placePos, sl);         // 内部 syncAll
+            } else if (markState == 2) {
+                markHidden(placePos, sl);   // syncAll
+            }
+            item.discard();
+        }
+    }
 }

@@ -7,7 +7,6 @@ import com.thelema.thrive.register.EffectRegister;
 import com.thelema.thrive.register.FluidRegister;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -41,75 +40,52 @@ public class SporeBlossomSpray {
         SporeType(int interval) { this.interval = interval; }
     }
 
-    private static LevelMap getData(ServerLevel level) {
-        return LevelMap.common(level, "spore_blossom_data");
-    }
+    private static final String KEY = "thrive_spore_blossom";
 
-    @SuppressWarnings("unchecked")
-    private static Map<BlockPos, CompoundTag> getRecordMap(ServerLevel level) {
-        LevelMap data = getData(level);
-        Map<BlockPos, CompoundTag> map = data.map();
-        return map;
+    private static LevelMap<BlockPos, String> getMap(ServerLevel level) {
+        return LevelMap.common(level, KEY);
     }
 
     @SubscribeEvent
     public static void onSporePlace(BlockEvent.EntityPlaceEvent event) {
-        if (!(event.getLevel() instanceof ServerLevel serverLevel)) return;
+        if (!(event.getLevel() instanceof ServerLevel level)) return;
         if (!event.getPlacedBlock().is(Blocks.SPORE_BLOSSOM)) return;
 
         BlockPos pos = event.getPos();
-        SporeType type = getTypeFromAbove(serverLevel, pos.above());
+        SporeType type = getTypeFromAbove(level, pos.above());
         if (type != null) {
-            Map<BlockPos, CompoundTag> map = getRecordMap(serverLevel);
-            CompoundTag record = new CompoundTag();
-            record.putString("type", type.name());
-            record.putLong("nextTrigger", serverLevel.getGameTime() + type.interval);
-            map.put(pos, record);
-            getData(serverLevel).setDirty();
-            executeEffect(serverLevel, pos, type);
+            LevelMap<BlockPos, String> map = getMap(level);
+            map.put(pos, type.name()); // 自动存盘
+            executeEffect(level, pos, type);
         }
     }
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         for (ServerLevel level : event.getServer().getAllLevels()) {
-            Map<BlockPos, CompoundTag> map = getRecordMap(level);
+            LevelMap<BlockPos, String> map = getMap(level);
             if (map.isEmpty()) continue;
 
-            long now = level.getGameTime();
-            var it = map.entrySet().iterator();
-            while (it.hasNext()) {
-                var entry = it.next();
-                BlockPos pos = entry.getKey();
-                CompoundTag record = entry.getValue();
+            List<BlockPos> toRemove = new ArrayList<>();
 
+            map.forEach((pos, s) -> {
                 if (level.isLoaded(pos)) {
                     if (!level.getBlockState(pos).is(Blocks.SPORE_BLOSSOM)) {
-                        it.remove();
-                        getData(level).setDirty();
-                        continue;
+                        toRemove.add(pos);
+                        return;
                     }
-                } else {
-                    continue;
+                    SporeType type = getTypeFromAbove(level, pos.above());
+                    if (type == null) {
+                        toRemove.add(pos);
+                        return;
+                    }
+                    executeEffect(level, pos, type);
                 }
+            });
 
-                SporeType currentType = getTypeFromAbove(level, pos.above());
-                if (currentType == null) {
-                    it.remove();
-                    getData(level).setDirty();
-                    continue;
-                }
-
-                if (!record.getString("type").equals(currentType.name())) {
-                    record.putString("type", currentType.name());
-                    record.putLong("nextTrigger", now + currentType.interval);
-                    getData(level).setDirty();
-                }
-
-                if (now >= record.getLong("nextTrigger")) {
-                    executeEffect(level, pos, currentType);
-                    record.putLong("nextTrigger", now + currentType.interval);
-                    getData(level).setDirty();
+            if (!toRemove.isEmpty()) {
+                for (BlockPos pos : toRemove) {
+                    map.remove(pos); // 自动存盘
                 }
             }
         }
@@ -169,11 +145,11 @@ public class SporeBlossomSpray {
         }
     }
 
-    private static SporeType getTypeFromAbove(Level level, BlockPos pos) {
-        BlockState state = level.getBlockState(pos);
+    private static SporeType getTypeFromAbove(Level level, BlockPos above) {
+        BlockState state = level.getBlockState(above);
         if (state.is(BlockRegister.GIANT_GLOWING_BERRY.get())) return SporeType.GLOWING_BERRY;
         if (state.is(BlockRegister.MOSS_FLUID_TANK.get())) {
-            if (level.getBlockEntity(pos) instanceof MossFluidTankBlockEntity tank) {
+            if (level.getBlockEntity(above) instanceof MossFluidTankBlockEntity tank) {
                 FluidStack fluid = tank.getFluidInTank(0);
                 if (!fluid.isEmpty()) {
                     if (fluid.getFluid() == FluidRegister.GLOWING_BERRY_JUICE.stillFluid().get())

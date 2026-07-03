@@ -27,8 +27,6 @@ import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.loot.LootParams;
-import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -39,13 +37,12 @@ import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidUtil;
 import net.neoforged.neoforge.items.IItemHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
 @EventBusSubscriber
-public class MossFluidTankBlock extends BaseEntityBlock {
+public class MossFluidTank extends BaseEntityBlock {
 
     @SubscribeEvent
     public static void registerCapabilities(RegisterCapabilitiesEvent event) {
@@ -61,7 +58,7 @@ public class MossFluidTankBlock extends BaseEntityBlock {
         );
     }
 
-    public MossFluidTankBlock() {
+    public MossFluidTank() {
         super(Block.Properties.of()
                 .strength(0.5F)
                 .sound(SoundType.GLASS)
@@ -71,7 +68,7 @@ public class MossFluidTankBlock extends BaseEntityBlock {
 
     @Override
     protected MapCodec<? extends BaseEntityBlock> codec() {
-        return simpleCodec(properties -> new MossFluidTankBlock());
+        return simpleCodec(properties -> new MossFluidTank());
     }
 
     @Override

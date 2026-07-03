@@ -46,23 +46,13 @@ public class BeeryJuiceEffect extends MobEffect {
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
         LivingEntity target = event.getEntity();
 
-        // 1. 浆果汁持有者受到火伤 + 50%
-        if (target.hasEffect(EffectRegister.BEERY_JUICE)) {
-            if (event.getSource().is(DamageTypes.ON_FIRE)
-                    || event.getSource().is(DamageTypes.IN_FIRE)
-                    || event.getSource().is(DamageTypes.LAVA)
-                    || event.getSource().is(DamageTypes.HOT_FLOOR)) {
-                event.setAmount(event.getAmount() * 1.5F);
-            }
-        }
-
-        // 2. 攻击者有浆果汁且着火 → 点燃目标 5 秒 + 2 点火伤（用 DamageQueue 避免免疫）
+        // 攻击者有浆果汁且着火 → 延长点燃目标 3 秒 + 2 点火伤（用 DamageQueue 避免免疫）
         if (event.getSource().getEntity() instanceof LivingEntity attacker
                 && attacker.hasEffect(EffectRegister.BEERY_JUICE)
                 && attacker.isOnFire()) {
 
             // 点燃 5 秒
-            target.setRemainingFireTicks(target.getRemainingFireTicks() + 100);
+            target.setRemainingFireTicks(target.getRemainingFireTicks() + 60);
 
             // 添加 2 点火焰伤害到队列，并加速处理，立刻生效
             DamageQueue.hurt(target, 2.0F, DamageTypes.IN_FIRE.location(), null);

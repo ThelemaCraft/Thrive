@@ -2,7 +2,7 @@ package com.thelema.thrive.register;
 
 import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.generic.block.GiantGlowingBerry;
-import com.thelema.thrive.generic.block.MossFluidTankBlock;
+import com.thelema.thrive.generic.block.MossFluidTank;
 import com.thelema.thrive.generic.block.MossFrameEmpty;
 import com.thelema.thrive.generic.block.MossPlantingBlock;
 import net.minecraft.world.item.BlockItem;
@@ -52,7 +52,7 @@ public class BlockRegister {
 
         GIANT_GLOWING_BERRY = registerWithItem("giant_glowing_berry", GiantGlowingBerry::new);
 
-        MOSS_FLUID_TANK = registerWithItem("moss_fluid_tank", MossFluidTankBlock::new);
+        MOSS_FLUID_TANK = registerWithItem("moss_fluid_tank", MossFluidTank::new);
 
     }
 

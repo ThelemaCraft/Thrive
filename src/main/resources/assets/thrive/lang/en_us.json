@@ -28,11 +28,8 @@
   "tooltip.thrive.moss_fluid_tank.fluid": "Fluid",
   "tooltip.thrive.moss_fluid_tank.empty": "Empty",
 
-  "tooltip.thrive.spore_blossom.desc1": "Natural atomizer",
-  "tooltip.thrive.spore_blossom.desc2": "draws liquid through direct contact via moss framework, used as atomization material",
-  "tooltip.thrive.moss_callus.desc": "Attached to armor, apply [Moss](Armor+1  Armor Toughness +1)",
-  "tooltip.thrive.giant_glowing_berry.desc": "Flammable and Explosive!",
-  "tooltip.thrive.glowing_berry_juice_bucket.desc": "Sweet and tasty, yet highly flammable!",
   "tooltip.thrive.glowing_berry_juice_immersion.desc": "[Juice]Nutrition+2, Saturation+2, 30s Glowing Berry Juice",
-  "tooltip.thrive.glowing_berry_juice_bottle.desc": "30s Glowing Berry Juice"
+  "tooltip.thrive.moss_frame_contained.desc": "[Moss Frame] Contained By Moss Frame, can be instantly break.",
+  "tooltip.thrive.moss_frame_contained_hidden.desc": "[Moss Frame] Contained By Moss Frame, can be instantly break, as well has hidden"
+
 }

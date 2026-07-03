@@ -1,7 +1,8 @@
 package com.thelema.thrive.generic.block;
 
 import com.thelema.thelemalib.level.Knockback;
-import com.thelema.thrive.generic.fluid.FireExplodeOfBerryJuice;
+import com.thelema.thrive.ThriveMod;
+import com.thelema.thrive.generic.fluid.FireExplode;
 import com.thelema.thrive.register.BlockRegister;
 import com.thelema.thrive.register.EffectRegister;
 import com.thelema.thrive.util.Flags;
@@ -40,6 +41,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @EventBusSubscriber
+@SuppressWarnings("NullableProblems")
 public class GiantGlowingBerry extends ColoredFallingBlock {
 
     public GiantGlowingBerry() {
@@ -53,27 +55,28 @@ public class GiantGlowingBerry extends ColoredFallingBlock {
     protected void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
         super.onPlace(state, level, pos, oldState, isMoving);
         // 检查火焰环境
-        if (!level.isClientSide && FireExplodeOfBerryJuice.checkFireEnv(level, pos)) {
+        if (!level.isClientSide && FireExplode.checkFireEnv(level, pos)) {
             ServerLevel sl = (ServerLevel) level;
-            // 立刻爆炸
-            FireExplodeOfBerryJuice.forceExplode(sl, pos, false);
+            // 立刻点燃
+            FireExplode.lit(sl, pos);
             // 清除自己
-            level.destroyBlock(pos, false);
+            ThriveMod.schedule(FireExplode.LIT_DURATION_TICKS, () -> level.destroyBlock(pos, false));
         }
     }
 
     @Override
-    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
-        if (level.getServer().getTickCount() % 5 == 0){
+    protected void tick(BlockState state, ServerLevel sl, BlockPos pos, RandomSource random) {
+        if (sl.getServer().getTickCount() % 5 == 0){
             // 检查火焰环境
-            if (FireExplodeOfBerryJuice.checkFireEnv(level, pos)){
-                // 立刻爆炸
-                FireExplodeOfBerryJuice.forceExplode(level, pos, false);
+            if (FireExplode.checkFireEnv(sl, pos)){
+                // 立刻点燃
+                FireExplode.lit(sl, pos);
                 // 清除自己
-                level.destroyBlock(pos, false);
+                ThriveMod.schedule(FireExplode.LIT_DURATION_TICKS, () -> sl.destroyBlock(pos, false));
             }
         }
-        super.tick(state, level, pos, random);
+
+        super.tick(state, sl, pos, random);
     }
 
     @SubscribeEvent
@@ -100,9 +103,10 @@ public class GiantGlowingBerry extends ColoredFallingBlock {
     // 剪刀剪下
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
-        if (stack.is(Items.SHEARS) && !level.isClientSide) {
+        // 有苔藓框架时，不能移除方块
+        if (stack.is(Items.SHEARS) && !level.isClientSide && !MossFrameEmpty.hasMark(pos, (ServerLevel) level)) {
             // 播放剪刀剪切声音
-            player.playSound(SoundEvents.CAVE_VINES_PICK_BERRIES); // 或用 SoundEvents.SHEAR
+            level.playSound(player, pos, SoundEvents.CAVE_VINES_PICK_BERRIES, SoundSource.BLOCKS,1.0f, 1.0f);
             // 掉落方块自身
             popResource(level, pos, new ItemStack(this));
             // 移除方块
@@ -114,49 +118,64 @@ public class GiantGlowingBerry extends ColoredFallingBlock {
         return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
     }
 
-    // 挖掘，投射物命中，等等都会造成爆炸
+    // 投射物命中，造成爆炸
     @Override
     protected void onProjectileHit(Level level, BlockState state, BlockHitResult hit, Projectile projectile) {
         BlockPos pos = hit.getBlockPos();
-        level.destroyBlock(pos, false);
+        // 如果有苔藓框架，不会触发普通爆炸
         if (level instanceof ServerLevel sl){
-            // 投射物命中，带火
-            if (projectile.isOnFire()){
-                // 立刻爆炸
-                FireExplodeOfBerryJuice.forceExplode(sl, pos, false);
-                // 清除方块
+            boolean onFire = projectile.isOnFire();
+            boolean hasMark = MossFrameEmpty.hasMark(pos, sl);
+
+            // 火，爆燃
+            if (onFire){
+                // 立刻爆燃
+                FireExplode.explode(sl, pos);
+                // 清除自己
                 sl.destroyBlock(pos, false);
-            }else {
+            }
+            //普通，无框架，爆炸
+            else if (!hasMark){
                 berryBlast(sl, pos);
             }
         }
     }
 
+    // 挖掘，造成爆炸
     @Override
     public boolean onDestroyedByPlayer(BlockState state, Level level, BlockPos pos, Player player, boolean willHarvest, FluidState fluid) {
         boolean b = super.onDestroyedByPlayer(state, level, pos, player, willHarvest, fluid);
-        if (b && level instanceof ServerLevel sl){
+        // 有框架，不触发爆炸
+        if (b && level instanceof ServerLevel sl && !MossFrameEmpty.hasMark(pos, sl)) {
             berryBlast(sl, pos);
         }
         return b;
     }
 
+    // 被活塞推动
     @Override
     public void onDestroyedByPushReaction(BlockState state, Level level, BlockPos pos, Direction pushDirection, FluidState fluid) {
         super.onDestroyedByPushReaction(state, level, pos, pushDirection, fluid);
-        if (level instanceof ServerLevel sl) berryBlast(sl, pos);
+        // 有框架，不触发爆炸
+        if (level instanceof ServerLevel sl && !MossFrameEmpty.hasMark(pos, sl)) {
+            berryBlast(sl, pos);
+        }
     }
 
+    // 生物摔在上面
     @Override
     public void fallOn(Level level, BlockState state, BlockPos pos, Entity entity, float fallDistance) {
         super.fallOn(level, state, pos, entity, fallDistance);
-        if (level instanceof ServerLevel sl) berryBlast(sl, pos);
+        // 有框架，不触发爆炸
+        if (level instanceof ServerLevel sl && !MossFrameEmpty.hasMark(pos, sl)) berryBlast(sl, pos);
     }
 
+    // 玩家摧毁
     @Override
     public void playerDestroy(Level level, Player player, BlockPos pos, BlockState state, @Nullable BlockEntity blockEntity, ItemStack tool) {
         super.playerDestroy(level, player, pos, state, blockEntity, tool);
-        if (level instanceof ServerLevel sl) berryBlast(sl, pos);
+        // 有框架，不触发爆炸
+        if (level instanceof ServerLevel sl && !MossFrameEmpty.hasMark(pos, sl)) berryBlast(sl, pos);
     }
 
     @Override

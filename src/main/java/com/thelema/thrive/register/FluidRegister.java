@@ -3,7 +3,7 @@ package com.thelema.thrive.register;
 import com.thelema.thelemalib.fluid.FluidCreator;
 import com.thelema.thelemalib.fluid.RegisteredFluid;
 import com.thelema.thrive.ThriveMod;
-import com.thelema.thrive.generic.fluid.FireExplodeOfBerryJuice;
+import com.thelema.thrive.generic.fluid.FireExplode;
 import net.minecraft.sounds.SoundEvents;
 import net.neoforged.bus.api.IEventBus;
 
@@ -16,7 +16,7 @@ public class FluidRegister {
                 .useWaterTexture()
                 .tintColor(0xFFFFD700)
                 .fogColor(0xFFFFD700)
-                .onEntityInside(FireExplodeOfBerryJuice::juiceInsideEffect)
+                .onEntityInside(FireExplode::juiceInsideEffect)
                 .lightLevel(15)
                 .viscosity(1500)
                 .density(2000)
