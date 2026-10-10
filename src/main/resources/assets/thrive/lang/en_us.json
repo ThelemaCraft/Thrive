@@ -9,7 +9,8 @@
   "block.thrive.rampant_moss": "Rampant Moss",
   "block.thrive.tall_grass_top": "Tall Grass Top",
   "block.thrive.tall_grass_bottom": "Tall Grass Bottom",
-  "block.thrive.biome_node": "Biome Node",
+
+  "block.thrive.biome_core": "Biome Core",
 
 
   "itemGroup.thrive": "Thrive",

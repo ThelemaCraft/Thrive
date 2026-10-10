@@ -105,6 +105,7 @@ public class FluidRegister {
                 public int getLightEmission(BlockState state, BlockGetter level, BlockPos pos) {
                     return state.getFluidState().getFluidType().getLightLevel();
                 }
+
             });
 
     public static final DeferredHolder<Item, BucketItem> LANTERN_BERRY_JUICE_BUCKET =

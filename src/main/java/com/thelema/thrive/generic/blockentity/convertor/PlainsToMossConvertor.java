@@ -88,28 +88,29 @@ public class PlainsToMossConvertor implements Convertor {
 
     @Override
     public void tick(ServerLevel level, BiomeCoreBlockEntity be) {
-        long tick = tick(be);
+        long tick = be.convertTick;
         int ring = (int) (tick / TICKS_PER_RING);
 
-        if (tick % 20 == 0){
-
-            if (ring >= 0 && ring <= MAX_RING) processBiome(level, be, ring);
-            if (ring >= 1 && ring <= MAX_RING + 1) processSurface(level, be, Math.min(ring - 1, MAX_RING));
-            if (ring >= 2 && ring <= MAX_RING + 2) processLake(level, be, Math.min(ring - 2, MAX_RING));
-            if (ring >= 3 && ring <= MAX_RING + 3) processDeco(level, be, Math.min(ring - 3, MAX_RING));
-
+        // 每环只处理一次
+        if (tick % TICKS_PER_RING == 0) {
+            processBiome(level, be, Math.min(ring, MAX_RING));
+            if (ring >= 1) processSurface(level, be, Math.min(ring - 1, MAX_RING));
+            if (ring >= 2) processLake(level, be, Math.min(ring - 2, MAX_RING));
+            if (ring >= 3) processDeco(level, be, Math.min(ring - 3, MAX_RING));
         }
 
         if (tick % 10 == 0) flushDirty(level, be);
 
         if (ring >= MAX_RING + 3) {
             flushDirty(level, be);
-            be.surface.clear();        // 消耗掉钥匙：表面没了物品，本转换自然停机
-            be.data.remove("tick");    // 进度清零，下次放新的从头跑
+            be.rotator.clear();
+            be.convertTick = 0;
+            be.activeConvertor = null;
+            be.activeSource = null;
             return;
         }
 
-        advanceTick(be);
+        be.convertTick++;
     }
 
     /** 该位置是否已经是目标群系。本转换自己的判断，框架不管群系。 */

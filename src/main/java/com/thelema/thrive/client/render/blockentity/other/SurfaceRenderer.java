@@ -2,8 +2,7 @@ package com.thelema.thrive.client.render.blockentity.other;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import com.thelema.thrive.generic.blockentity.tool.Surface;
-import com.thelema.thrive.generic.blockentity.tool.TransportedItemStack;
+import com.thelema.thrive.generic.blockentity.cap.Surface;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -40,7 +39,7 @@ public class SurfaceRenderer {
             light = LevelRenderer.getLightColor(level, pos.above());
         }
 
-        TransportedItemStack tis = surface.item;
+        Surface.TransportedItemStack tis = surface.item;
         Vec3 itemPosition = Vec3.atCenterOf(pos);
 
         ms.pushPose();
@@ -72,7 +71,7 @@ public class SurfaceRenderer {
         int count = Mth.log2(stack.getCount()) / 2;
         BakedModel bakedModel = itemRenderer.getModel(stack, null, null, 0);
         boolean blockItem = bakedModel.isGui3d();
-        boolean upright = TransportedItemStack.isItemUpright(stack);
+        boolean upright = Surface.TransportedItemStack.isItemUpright(stack);
         Random r = new Random(0);
 
         ms.pushPose();

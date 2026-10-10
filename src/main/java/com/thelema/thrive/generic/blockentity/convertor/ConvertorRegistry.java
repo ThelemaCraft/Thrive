@@ -1,21 +1,28 @@
 package com.thelema.thrive.generic.blockentity.convertor;
 
 import com.thelema.thrive.register.BlockRegister;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.level.biome.Biome;
 
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * 转换器表：key 是驱动它的特殊物品 Item，不是物品栈——取 key 用 stack.getItem()。
- * 群系核心表面摆着哪个物品，就跑哪个转换器。
- */
 public class ConvertorRegistry {
 
-    public static final Map<Item, Convertor> MAP = new HashMap<>();
+    /** 物品 → (源群系 → 转换器)。同一物品在不同源群系触发不同转换。 */
+    public static final Map<Item, Map<ResourceKey<Biome>, Convertor>> MAP = new HashMap<>();
+
+    public static void register(Item item, ResourceKey<Biome> source, Convertor convertor) {
+        MAP.computeIfAbsent(item, k -> new HashMap<>()).put(source, convertor);
+    }
 
     static {
-        MAP.put(BlockRegister.RAMPANT_MOSS.get().asItem(), new PlainsToMossConvertor());
-        // 后续钥匙一行一条
+        register(BlockRegister.RAMPANT_MOSS.get().asItem(),
+                ResourceKey.create(Registries.BIOME, ResourceLocation.withDefaultNamespace("plains")),
+                new PlainsToMossConvertor());
+        // 后续：register(item, ResourceKey.create(..., "forest"), new ForestToMossConvertor());
     }
 }

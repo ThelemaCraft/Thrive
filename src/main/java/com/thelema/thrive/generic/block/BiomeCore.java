@@ -2,9 +2,11 @@ package com.thelema.thrive.generic.block;
 
 import com.thelema.thrive.generic.blockentity.BiomeCoreBlockEntity;
 import com.thelema.thrive.generic.blockentity.convertor.ConvertorRegistry;
-import com.thelema.thrive.generic.blockentity.tool.Surface;
+import com.thelema.thrive.generic.blockentity.cap.Surface;
 import com.thelema.thrive.register.BlockEntityRegister;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
@@ -21,6 +23,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 public class BiomeCore extends Block implements EntityBlock {
@@ -49,11 +52,12 @@ public class BiomeCore extends Block implements EntityBlock {
     @Override
     public void onRemove(BlockState state, Level level, BlockPos pos,
                          BlockState newState, boolean moved) {
-        // 转换跑着的时候钥匙锁死在表面，破坏方块也拿不回来
         if (!level.isClientSide && state.getBlock() != newState.getBlock()
-                && level.getBlockEntity(pos) instanceof BiomeCoreBlockEntity be
-                && !ConvertorRegistry.MAP.containsKey(be.surface.getStack().getItem())) {
+                && level.getBlockEntity(pos) instanceof BiomeCoreBlockEntity be) {
+            be.rotator.clear();   // 转换物品不掉落
             be.surface.dropItem();
+            be.activeConvertor = null;
+            be.activeSource = null;
         }
         super.onRemove(state, level, pos, newState, moved);
     }
@@ -66,13 +70,15 @@ public class BiomeCore extends Block implements EntityBlock {
         if (!(level.getBlockEntity(pos) instanceof BiomeCoreBlockEntity be))
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 
+        // ─── 潜行右键：强制终止 ───
+        if (player.isShiftKeyDown() && !be.rotator.isEmpty()) {
+            terminate(level, pos, be, player);
+            return ItemInteractionResult.SUCCESS;
+        }
+
         Surface surface = be.surface;
 
-        // 转换跑着的时候钥匙锁定：拿不走，也换不下来
-        if (!surface.isEmpty() && ConvertorRegistry.MAP.containsKey(surface.getStack().getItem()))
-            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-
-        // 空手取出
+        // 空手：取出 Surface 物品
         if (stack.isEmpty()) {
             if (surface.isEmpty()) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
             ItemStack taken = surface.getStack().copy();
@@ -83,12 +89,34 @@ public class BiomeCore extends Block implements EntityBlock {
             return ItemInteractionResult.SUCCESS;
         }
 
-        // 手上有物品：表面空则摆上，有则把旧的换下来。空表面取到的是 EMPTY，后面两步是空操作
+        // 手上有物品：放入 / 替换 Surface，重启 5 秒倒计时
         ItemStack taken = surface.getStack().copy();
         surface.set(stack.copy(), player.getDirection());
         if (!player.isCreative()) stack.setCount(0);
-        if (!player.getInventory().add(taken)) player.drop(taken, false);
-
+        if (!taken.isEmpty() && !player.getInventory().add(taken)) player.drop(taken, false);
+        level.playSound(null, pos, SoundEvents.ITEM_FRAME_ADD_ITEM,
+                SoundSource.BLOCKS, 0.75F, 1.0F);
+        be.checkTimer = BiomeCoreBlockEntity.CHECK_INTERVAL;
         return ItemInteractionResult.SUCCESS;
+    }
+
+    private static void terminate(Level level, BlockPos pos, BiomeCoreBlockEntity be, Player player) {
+        ServerLevel sl = (ServerLevel) level;
+
+        sl.sendParticles(ParticleTypes.LARGE_SMOKE,
+                pos.getX() + 0.5, pos.getY() + be.rotator.height, pos.getZ() + 0.5,
+                30, 0.3, 0.3, 0.3, 0.05);
+        level.playSound(null, pos, SoundEvents.FIRE_EXTINGUISH,
+                SoundSource.BLOCKS, 1.0F, 1.0F);
+
+        Vec3 dir = player.position().subtract(Vec3.atCenterOf(pos)).normalize();
+        player.push(dir.x * 1.5, 0.4, dir.z * 1.5);
+        player.hurtMarked = true;
+
+        be.rotator.clear();
+        be.convertTick = 0;
+        be.checkTimer = 0;
+        be.activeConvertor = null;
+        be.activeSource = null;
     }
 }

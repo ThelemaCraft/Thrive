@@ -2,7 +2,6 @@ package com.thelema.thrive.client.model.entity;
 
 import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.generic.entity.LanternBerryCreeper;
-import com.thelema.thrive.generic.entity.MossyZombie;
 import net.minecraft.resources.ResourceLocation;
 import software.bernie.geckolib.model.GeoModel;
 

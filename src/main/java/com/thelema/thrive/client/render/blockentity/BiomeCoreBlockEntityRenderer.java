@@ -1,6 +1,7 @@
 package com.thelema.thrive.client.render.blockentity;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.thelema.thrive.client.render.blockentity.other.RotatorRenderer;
 import com.thelema.thrive.client.render.blockentity.other.SurfaceRenderer;
 import com.thelema.thrive.generic.blockentity.BiomeCoreBlockEntity;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -21,5 +22,7 @@ public class BiomeCoreBlockEntityRenderer implements BlockEntityRenderer<BiomeCo
                        MultiBufferSource buffer, int light, int overlay) {
         SurfaceRenderer.render(be.surface, partialTicks, ms, buffer, light, overlay,
                 itemRenderer, 1.12f);
+        RotatorRenderer.render(be.rotator, partialTicks, ms, buffer, light, overlay,
+                itemRenderer);
     }
 }

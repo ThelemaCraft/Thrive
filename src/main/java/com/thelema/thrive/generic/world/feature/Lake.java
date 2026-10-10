@@ -2,6 +2,7 @@ package com.thelema.thrive.generic.world.feature;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.thelema.thrive.register.BlockRegister;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
@@ -38,6 +39,10 @@ public class Lake extends Feature<Lake.LakeConfig> {
         }
 
         BlockPos start = origin.below(4);
+        // 湖泊范围内若包含 BiomeCore，整个放弃，避免破坏
+        for (BlockPos p : BlockPos.betweenClosed(start, start.offset(15, 7, 15))) {
+            if (level.getBlockState(p).is(BlockRegister.BIOME_CORE.get())) return false;
+        }
         boolean[] lake = new boolean[16 * 16 * 8];
 
         int blobCount = random.nextInt(4) + 4;
