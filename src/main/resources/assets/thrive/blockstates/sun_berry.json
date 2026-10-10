@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "core=false": { "model": "thrive:block/sun_berry" },
+    "core=true":  { "model": "thrive:block/sun_berry" }
+  }
+}

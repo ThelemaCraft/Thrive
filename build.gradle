@@ -91,7 +91,7 @@ dependencies {
 
     implementation files('libs/thelemalib-1.0.0.jar')
 
-    implementation files('libs/TerraBlender-neoforge-1.21.1-4.1.0.8.jar')
+    implementation files('libs/geckolib-neoforge-1.21.1-4.9.2.jar')
 
 }
 

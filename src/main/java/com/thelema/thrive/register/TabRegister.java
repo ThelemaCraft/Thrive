@@ -22,12 +22,12 @@ public class TabRegister {
     public static final Supplier<CreativeModeTab> THRIVE_TAB = CREATIVE_TAB.register("thrive_tab",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.thrive"))
-                    .icon(() -> new ItemStack(BlockRegister.GIANT_GLOWING_BERRY.get()))
+                    .icon(() -> new ItemStack(BlockRegister.LANTERN_BERRY.get()))
                     .displayItems((parameters, output) -> {
                         // 添加你的所有物品/方块
                         ItemRegister.ITEM.getEntries().forEach(entry -> output.accept(entry.get()));
                         // 桶
-                        output.accept(FluidRegister.GLOWING_BERRY_JUICE.bucket().get());
+                        output.accept(FluidRegister.LANTERN_BERRY_JUICE_BUCKET.get());
 
 
                     })

@@ -1,0 +1,12 @@
+{
+  "parent": "minecraft:block/cube",
+  "textures": {
+    "down": "thrive:block/lantern_berry_bottom",
+    "up": "thrive:block/lantern_berry_up",
+    "north": "thrive:block/lantern_berry_side",
+    "south": "thrive:block/lantern_berry_side",
+    "east": "thrive:block/lantern_berry_side",
+    "west": "thrive:block/lantern_berry_side",
+    "particle": "thrive:block/lantern_berry_side"
+  }
+}

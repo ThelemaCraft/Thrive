@@ -1,35 +1,35 @@
 {
-  "fluid_type.thrive.glowing_berry_juice_type": "发光浆果汁",
+  "fluid_type.thrive.lantern_berry_juice_type": "灯笼浆果汁",
 
-  "fluid.thrive.glowing_berry_juice": "发光浆果汁",
+  "block.thrive.lantern_berry_juice_block": "灯笼浆果汁",
+  "block.thrive.moss_frame": "坚韧苔藓",
+  "block.thrive.moss_planting_block": "苔藓耕地",
+  "block.thrive.lantern_berry": "灯笼浆果",
+  "block.thrive.sun_berry": "太阳浆果",
+  "block.thrive.rampant_moss": "疯长的苔藓块",
 
-  "block.thrive.glowing_berry_juice_block": "发光浆果汁块",
-  "block.thrive.glowing_berry_juice": "发光浆果汁",
-  "block.thrive.moss_frame": "苔藓框架",
-  "block.thrive.moss_frame_empty": "空苔藓框架",
-  "block.thrive.fill_water_moss_frame": "注水苔藓框架",
-  "block.thrive.fill_milk_moss_frame": "注奶苔藓框架",
-  "block.thrive.moss_planting_block": "苔藓种植块",
-  "block.thrive.giant_glowing_berry": "巨型发光浆果",
-  "block.thrive.moss_fluid_tank": "苔藓储罐",
+  "itemGroup.thrive": "繁荣",
 
-  "itemGroup.thrive": "Thrive",
-  "item.thrive.glowing_berry_juice_bottle": "发光浆果汁瓶",
-  "item.thrive.glowing_berry_juice_bucket": "发光浆果汁桶",
-  "item.thrive.moss_callus": "苔藓愈伤茧",
-  "item.thrive.enchanted_moss_golden_apple": "附魔苔藓金苹果",
+  "item.thrive.lantern_berry_juice_bucket": "灯笼果汁桶",
+  "item.thrive.biome_twig": "群系新枝",
 
-  "effect.thrive.berry_juice": "浆果汁",
+
+  "effect.thrive.lantern_berry_juice": "灯笼果汁",
+  "effect.thrive.super_hunger": "超级饥饿",
+  "effect.thrive.appetite": "食欲",
+  "effect.thrive.blinding": "炫目",
+
 
   "biome.thrive.moss_land": "苔藓地",
   "biome.thrive.flower_sea": "花海",
 
-  "tooltip.thrive.moss_fluid_tank.item": "物品",
-  "tooltip.thrive.moss_fluid_tank.fluid": "流体",
-  "tooltip.thrive.moss_fluid_tank.empty": "空",
+  "entity.thrive.primed_lantern_berry": "点燃的灯笼果",
+  "entity.thrive.lantern_berry_creeper": "灯笼果苦力怕",
 
-  "tooltip.thrive.glowing_berry_juice_immersion.desc": "[浆果汁]营养值+2, 饱和度和+2, 获得30秒发光浆果汁效果",
-  "tooltip.thrive.moss_frame_contained.desc": "[苔藓框架] 被框入苔藓框架, 可被瞬间破坏",
-  "tooltip.thrive.moss_frame_contained_hidden.desc": "[苔藓框架] 被框入苔藓框架, 可被瞬间破坏, 进行了修剪，方块外观不变"
+  "subtitles.thrive.sun_berry_ignite": "太阳浆果被点燃",
+  "subtitles.thrive.sun_berry_deflagrate": "太阳浆果爆燃",
+
+  "death.attack.sun": "%1$s 被太阳焚化了",
+  "death.attack.sun.player": "%1$s 被 %2$s 用太阳焚化了"
 
 }

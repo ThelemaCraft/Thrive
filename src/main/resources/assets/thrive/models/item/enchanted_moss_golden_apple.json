@@ -1,6 +1,0 @@
-{
-  "parent": "minecraft:item/generated",
-  "textures": {
-    "layer0": "thrive:item/enchanted_moss_golden_apple"
-  }
-}

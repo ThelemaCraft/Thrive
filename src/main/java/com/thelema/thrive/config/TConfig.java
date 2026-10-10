@@ -21,7 +21,8 @@ public class TConfig {
     TConfig(ModConfigSpec.Builder builder) {
 
         builder.push("moss_frame_empty");
-
+        builder.comment("苔藓框架不能框入的方块");
+        builder.comment("Blocks that cannot be enclosed by the moss frame");
         mossFrameEmptyBlackList = builder.defineList(
                 "black_list",
                 List.of(

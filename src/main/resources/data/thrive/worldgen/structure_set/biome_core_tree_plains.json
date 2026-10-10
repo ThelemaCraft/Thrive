@@ -1,0 +1,15 @@
+{
+  "structures": [
+    {
+      "structure": "thrive:biome_core_tree_plains",
+      "weight": 1
+    }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "salt": 123456789,
+    "spacing": 48,
+    "separation": 24,
+    "spread_type": "linear"
+  }
+}

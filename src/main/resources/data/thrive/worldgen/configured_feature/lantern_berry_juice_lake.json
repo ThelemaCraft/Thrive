@@ -1,0 +1,7 @@
+{
+  "type": "thrive:lake",
+  "config": {
+    "fluid": { "Name": "thrive:lantern_berry_juice_block" },
+    "barrier": { "Name": "minecraft:moss_block" }
+  }
+}

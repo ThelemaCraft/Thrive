@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "thrive:block/biome_core"
+    }
+  }
+}

@@ -1,35 +1,45 @@
 {
-  "fluid_type.thrive.glowing_berry_juice_type": "Glowing Berry Juice",
+  "fluid_type.thrive.lantern_berry_juice_type": "Lantern Berry Juice",
 
-  "fluid.thrive.glowing_berry_juice": "Glowing Berry Juice",
-
-  "block.thrive.glowing_berry_juice_block": "Glowing Berry Juice",
-  "block.thrive.glowing_berry_juice": "Glowing Berry Juice",
+  "block.thrive.lantern_berry_juice_block": "Lantern Berry Juice",
   "block.thrive.moss_frame": "Moss Frame",
-  "block.thrive.moss_frame_empty": "Moss Frame Empty",
-  "block.thrive.fill_water_moss_frame": "Fill Water Moss Frame",
-  "block.thrive.fill_milk_moss_frame": "Fill Milk Moss Frame",
   "block.thrive.moss_planting_block": "Moss Planting Block",
-  "block.thrive.giant_glowing_berry": "Giant Glowing Berry",
-  "block.thrive.moss_fluid_tank": "Moss Fluid Tank",
+  "block.thrive.lantern_berry": "Lantern Berry",
+  "block.thrive.sun_berry": "Sun Berry",
+  "block.thrive.rampant_moss": "Rampant Moss",
+  "block.thrive.tall_grass_top": "Tall Grass Top",
+  "block.thrive.tall_grass_bottom": "Tall Grass Bottom",
+  "block.thrive.biome_node": "Biome Node",
+
 
   "itemGroup.thrive": "Thrive",
-  "item.thrive.glowing_berry_juice_bottle": "Glowing Berry Juice Bottle",
-  "item.thrive.glowing_berry_juice_bucket": "Glowing Berry Juice Bucket",
-  "item.thrive.moss_callus": "Moss Callus",
-  "item.thrive.enchanted_moss_golden_apple": "Enchanted Moss Golden Apple",
+  "item.thrive.lantern_berry_juice_bucket": "Lantern Berry Juice Bucket",
+  "item.thrive.fresh_grass": "Fresh Grass",
+  "item.thrive.fresh_grass_paste": "Fresh Grass Paste",
+  "item.thrive.hunger_snack": "Hunger Snack",
+  "item.thrive.fresh_grass_cake": "Fresh Grass Cake",
+  "item.thrive.biome_twig": "Biome Twig",
 
-  "effect.thrive.berry_juice": "Berry Juice",
+
+  "effect.thrive.lantern_berry_juice": "Lantern Berry Juice",
+  "effect.thrive.super_hunger": "Super Hunger",
+  "effect.thrive.appetite": "Appetite",
+  "effect.thrive.blinding": "Blinding",
 
   "biome.thrive.moss_land": "Moss Land",
   "biome.thrive.flower_sea": "Flower Sea",
 
-  "tooltip.thrive.moss_fluid_tank.item": "Item",
-  "tooltip.thrive.moss_fluid_tank.fluid": "Fluid",
-  "tooltip.thrive.moss_fluid_tank.empty": "Empty",
+  "entity.thrive.primed_lantern_berry": "Primed Lantern Berry",
+  "entity.thrive.mossy_zombie": "Mossy Zombie",
+  "entity.thrive.lantern_berry_creeper": "Lantern Berry Creeper",
+  "entity.thrive.grass_land_sheep": "Grass Land Sheep",
+  "entity.thrive.grass_land_sheep.title": "Grass Devourer",
+  "entity.thrive.sun": "Sun",
 
-  "tooltip.thrive.glowing_berry_juice_immersion.desc": "[Juice]Nutrition+2, Saturation+2, 30s Glowing Berry Juice",
-  "tooltip.thrive.moss_frame_contained.desc": "[Moss Frame] Contained By Moss Frame, can be instantly break.",
-  "tooltip.thrive.moss_frame_contained_hidden.desc": "[Moss Frame] Contained By Moss Frame, can be instantly break, as well has hidden"
+  "subtitles.thrive.sun_berry_ignite": "Sun Berry ignites",
+  "subtitles.thrive.sun_berry_deflagrate": "Sun Berry deflagrates",
+
+  "death.attack.sun": "%1$s was incinerated by the sun",
+  "death.attack.sun.player": "%1$s was incinerated by %2$s"
 
 }

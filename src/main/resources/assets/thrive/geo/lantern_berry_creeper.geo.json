@@ -1,0 +1,69 @@
+{
+	"format_version": "1.12.0",
+	"minecraft:geometry": [
+		{
+			"description": {
+				"identifier": "geometry.lantern_berry_creeper",
+				"texture_width": 64,
+				"texture_height": 64,
+				"visible_bounds_width": 3,
+				"visible_bounds_height": 3.5,
+				"visible_bounds_offset": [0, 1.25, 0]
+			},
+			"bones": [
+				{
+					"name": "Creeper",
+					"pivot": [0, 0, 0]
+				},
+				{
+					"name": "leg1",
+					"parent": "Creeper",
+					"pivot": [-2, 6, 4],
+					"cubes": [
+						{"origin": [-6, 0, 2], "size": [4, 6, 4], "uv": [32, 28]}
+					]
+				},
+				{
+					"name": "leg2",
+					"parent": "Creeper",
+					"pivot": [2, 6, 4],
+					"cubes": [
+						{"origin": [2, 0, 2], "size": [4, 6, 4], "uv": [32, 38]}
+					]
+				},
+				{
+					"name": "leg3",
+					"parent": "Creeper",
+					"pivot": [-2, 4, -4],
+					"cubes": [
+						{"origin": [-6, 0, -6], "size": [4, 6, 4], "uv": [0, 44]}
+					]
+				},
+				{
+					"name": "leg4",
+					"parent": "Creeper",
+					"pivot": [2, 6, -4],
+					"cubes": [
+						{"origin": [2, 0, -6], "size": [4, 6, 4], "uv": [16, 44]}
+					]
+				},
+				{
+					"name": "head",
+					"parent": "Creeper",
+					"pivot": [0, 18.08189, 0],
+					"cubes": [
+						{"origin": [-4, 18.08189, -4], "size": [8, 8, 8], "uv": [0, 28]}
+					]
+				},
+				{
+					"name": "body",
+					"parent": "Creeper",
+					"pivot": [0, 6, 0],
+					"cubes": [
+						{"origin": [-8, 6.08189, -8], "size": [16, 12, 16], "uv": [0, 0]}
+					]
+				}
+			]
+		}
+	]
+}

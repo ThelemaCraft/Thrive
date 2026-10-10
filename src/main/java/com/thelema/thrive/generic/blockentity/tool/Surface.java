@@ -1,0 +1,125 @@
+package com.thelema.thrive.generic.blockentity.tool;
+
+import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.BlockEntity;
+
+/**
+ * 表面放物品的能力组件。
+ * 任何 BlockEntity 加一个字段就能获得，不需要继承。
+ */
+public class Surface {
+
+    public final BlockEntity owner;
+
+    /** 被展示的物品及位姿。null = 空。 */
+    public TransportedItemStack item;
+
+    public Surface(BlockEntity owner) {
+        this.owner = owner;
+    }
+
+    public ItemStack getStack() {
+        return item == null ? ItemStack.EMPTY : item.stack;
+    }
+
+    public boolean isEmpty() {
+        return item == null || item.stack.isEmpty();
+    }
+
+    // ===== 状态变更 =====
+
+    public void set(ItemStack stack, Direction from) {
+        TransportedItemStack tis = new TransportedItemStack(stack.copy());
+        tis.insertedFrom = from;
+        tis.beltPosition = from.getAxis().isVertical() ? 0.5f : 0f;
+        tis.prevBeltPosition = tis.beltPosition;
+        this.item = tis;
+        owner.setChanged();
+        sync();
+    }
+
+    public void clear() {
+        this.item = null;
+        owner.setChanged();
+        sync();
+    }
+
+    /** 改表面物品的数量并同步。 */
+    public void setCount(int count) {
+        item.stack.setCount(count);
+        owner.setChanged();
+        sync();
+    }
+
+    // ===== 每 tick 推进位姿 =====
+
+    public void tickAnimation() {
+        if (item == null) return;
+
+        item.prevBeltPosition = item.beltPosition;
+        item.prevSideOffset = item.sideOffset;
+
+        float diff = 0.5f - item.beltPosition;
+        if (diff > 1 / 512f) {
+            if (diff > 1 / 32f && !TransportedItemStack.isItemUpright(item.stack))
+                item.angle += 1;
+            item.beltPosition += diff / 4f;
+        }
+        item.sideOffset = item.getTargetSideOffset();
+    }
+
+    // ===== 掉落 =====
+
+    public void dropItem() {
+        Level level = owner.getLevel();
+        if (item == null || level == null || level.isClientSide) return;
+        Block.popResource(level, owner.getBlockPos(), item.stack);
+        item = null;
+        owner.setChanged();
+    }
+
+    // ===== NBT =====
+
+    public void save(CompoundTag tag, HolderLookup.Provider registries) {
+        if (item != null) {
+            tag.put("SurfaceItem", item.serializeNBT(registries));
+        } else {
+            tag.putBoolean("SurfaceItemEmpty", true);   // 显式标记空
+        }
+    }
+
+    public void load(CompoundTag tag, HolderLookup.Provider registries) {
+        if (tag.contains("SurfaceItem")) {
+            item = TransportedItemStack.read(tag.getCompound("SurfaceItem"), registries);
+        } else if (tag.contains("SurfaceItemEmpty")) {
+            item = null;   // 客户端按空处理
+        }
+        // 若两者都没有：读档/初始状态，保持当前
+    }
+
+    // ===== 同步 =====
+
+    /**
+     * BE 数据直发给追踪此位置的玩家。
+     * sendBlockUpdated 走方块变更管线，方块状态没变时不保证发 BE 包——取出物品正是这种情况。
+     */
+    private void sync() {
+        if (!(owner.getLevel() instanceof ServerLevel level)) return;
+        Packet<ClientGamePacketListener> packet = owner.getUpdatePacket();
+        if (packet == null) return;
+        ChunkPos cp = new ChunkPos(owner.getBlockPos());
+        for (ServerPlayer player : level.getChunkSource().chunkMap.getPlayers(cp, false)) {
+            player.connection.send(packet);
+        }
+    }
+}

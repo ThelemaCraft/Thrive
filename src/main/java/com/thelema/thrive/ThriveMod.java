@@ -3,34 +3,26 @@ package com.thelema.thrive;
 import com.mojang.logging.LogUtils;
 import com.thelema.thrive.config.TConfig;
 import com.thelema.thrive.register.*;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 
-import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Mod(ThriveMod.MOD_ID)
 public class ThriveMod {
-    // 全局 Random
-    public static final Random RANDOM = new Random();
 
     public static final String MOD_ID = "thrive";
 
     public static final Logger LOGGER = LogUtils.getLogger();
 
-
-
     public ThriveMod(IEventBus bus, ModContainer cont) {
-
 
         ItemRegister.register(bus);
         BlockRegister.register(bus);
@@ -40,24 +32,17 @@ public class ThriveMod {
         TabRegister.register(bus);
         ItemCompRegister.register(bus);
         EffectRegister.register(bus);
+        EntityRegister.register(bus);
+        PotionRegister.register(bus);
+        SoundRegister.register(bus);
+        ParticleRegister.register(bus);
+        RecipeRegister.register();
 
 
 
 
         cont.registerConfig(ModConfig.Type.COMMON, TConfig.SPEC);
-        bus.addListener(this::commonSetup);
     }
-
-    private void commonSetup(FMLCommonSetupEvent event) {
-
-        event.enqueueWork(() -> {
-
-            RegionRegister.register();
-            SurfaceRuleRegister.register();
-        });
-
-    }
-
 
     static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
@@ -69,4 +54,5 @@ public class ThriveMod {
             }
         }, ticks * 50L, TimeUnit.MILLISECONDS);
     }
+
 }

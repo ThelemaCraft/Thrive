@@ -1,0 +1,14 @@
+{
+  "sun_berry_ignite": {
+    "subtitle": "subtitles.thrive.sun_berry_ignite",
+    "sounds": [
+      { "name": "thrive:sun_berry_ignite" }
+    ]
+  },
+  "sun_berry_deflagrate": {
+    "subtitle": "subtitles.thrive.sun_berry_deflagrate",
+    "sounds": [
+      { "name": "thrive:sun_berry_deflagrate" }
+    ]
+  }
+}

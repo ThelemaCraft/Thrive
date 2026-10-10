@@ -1,8 +1,2 @@
 {
-  "tooltip.inject.thrive.moss_frame_empty.desc": "潜行 + 右键点击: 框住一个方块",
-  "tooltip.inject.thrive.moss_callus": "§a与任意护甲合成，赋予 [苔藓] (护甲+1, 护甲韧性+1)",
-  "tooltip.inject.minecraft.spore_blossom": "§2天然雾化器\n§2通过苔藓框架直接接触抽取液体，用作雾化原料",
-  "tooltip.inject.thrive.giant_glowing_berry": "§e易燃易爆！",
-  "tooltip.inject.thrive.glowing_berry_juice_bucket": "§e香甜可口，但高能易燃！",
-  "tooltip.inject.thrive.glowing_berry_juice_bottle": "§e获得30秒发光浆果汁效果"
 }

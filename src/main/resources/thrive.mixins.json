@@ -5,10 +5,13 @@
   "refmap": "thrive.refmap.json",
   "target": "@env(DEFAULT)",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [],
-  "client": [
-    "SporeBlossomBlockMixin",
-    "FallingBlockMixin"
+  "mixins": [
+    "PlayerMixin",
+    "JigsawPlacementMixin"
   ],
-  "server": []
+  "client": [
+
+  ],
+  "server": [
+  ]
 }
