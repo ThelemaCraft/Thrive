@@ -7,6 +7,8 @@
   "block.thrive.lantern_berry": "灯笼浆果",
   "block.thrive.sun_berry": "太阳浆果",
   "block.thrive.rampant_moss": "疯长的苔藓块",
+  "block.thrive.grass_block": "草块",
+  "block.thrive.garden_hive": "花园蜂巢",
 
   "block.thrive.biome_core": "群系核心",
 
@@ -14,6 +16,8 @@
 
   "item.thrive.lantern_berry_juice_bucket": "灯笼果汁桶",
   "item.thrive.biome_twig": "群系新枝",
+  "item.thrive.garden_bee_spawn_egg": "花园蜜蜂刷怪蛋",
+  "item.thrive.garden_honey": "花园蜂蜜",
 
 
   "effect.thrive.lantern_berry_juice": "灯笼果汁",
@@ -27,6 +31,7 @@
 
   "entity.thrive.primed_lantern_berry": "点燃的灯笼果",
   "entity.thrive.lantern_berry_creeper": "灯笼果苦力怕",
+  "entity.thrive.garden_bee": "花园蜜蜂",
 
   "subtitles.thrive.sun_berry_ignite": "太阳浆果被点燃",
   "subtitles.thrive.sun_berry_deflagrate": "太阳浆果爆燃",

@@ -4,14 +4,16 @@
 
 ---
 
+# 项目编译指令
+- ./gradlew build，在 D:\all\true\Thrive下执行
+
 ## 一、代码风格
 
-- **写最少代码**：表达意图的最短路径。不写可写可不写的。
+- **最少属性原则**：任何属性，都不能由其它属性直接或组合得来，即功能是无法被其它属性替代的。
 - **字段默认 public**：不为封装而封装。只有需要时才 getter/setter。
-- **去掉多余检查**：能由调用方保证的，不在被调方重复。
+- **无冗余检查**：能由调用方保证的，不在被调方重复，调用方尽量不给被调用方注意点。
 - **删掉死代码**：没被用到的，立刻删，不留"以后可能有用"。
-- **注释写 why**：讲设计思路、取舍、非显而易见处。不解释代码在干什么。
-- **封装要有价值**：强功能性 + 易于理解，二者缺一不如展开写。
+- **封装要有价值**：易于理解 + 复用度高 + 封装的逻辑多。即：1：不能看不懂。2：不能只有1个地方用它。3：不要为1或2条语句封装。
 
 ### 正例：forRing
 
@@ -38,7 +40,7 @@ default void forRing(ServerLevel level, BiomeCoreBlockEntity be, int r,
 
 ### 反例：advance
 
-包住一个 `if`：
+作为几个判断条件就能完成的事情，这里特意封装了一个难以理解的advance：
 
 ```java
 default void advance(BiomeCoreBlockEntity be, String key, int want, IntConsumer process) {

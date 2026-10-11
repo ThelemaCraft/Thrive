@@ -1,8 +1,10 @@
 package com.thelema.thrive.generic.entity;
 
+import com.thelema.thelemalib.damage.Damage;
 import com.thelema.thelemalib.damage.DamageQueue;
 import com.thelema.thelemalib.entity.Knockback;
 import com.thelema.thrive.generic.block.LanternBerry;
+import com.thelema.thrive.register.EffectRegister;
 import com.thelema.thrive.register.EntityRegister;
 import com.thelema.thrive.register.ParticleRegister;
 import net.minecraft.core.BlockPos;
@@ -90,34 +92,6 @@ public class PrimedLanternBerry extends Entity implements TraceableEntity {
     }
 
     public static void deflagrate(Level level, BlockPos pos, @Nullable LivingEntity owner, @Nullable Entity excludeEntity) {
-        if (level.getBlockState(pos).isAir()) {
-            level.setBlockAndUpdate(pos, Blocks.FIRE.defaultBlockState());
-        }
-
-        if (level instanceof ServerLevel) {
-            double cx = pos.getX() + 0.5;
-            double cy = pos.getY() + 0.5;
-            double cz = pos.getZ() + 0.5;
-
-            double[] radii = {1.2, 2.2};
-            double thickness = 0.5;
-
-            BlockPos.betweenClosed(pos.offset(-3, -2, -3), pos.offset(3, 3, 3))
-                    .forEach(blockPos -> {
-                        double dx = blockPos.getX() + 0.5 - cx;
-                        double dy = blockPos.getY() + 0.5 - cy;
-                        double dz = blockPos.getZ() + 0.5 - cz;
-                        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-                        for (double r : radii) {
-                            if (Math.abs(dist - r) < thickness
-                                    && level.getBlockState(blockPos).isAir()) {
-                                level.setBlockAndUpdate(blockPos, Blocks.FIRE.defaultBlockState());
-                                break;
-                            }
-                        }
-                    });
-        }
 
         for (BlockPos blockPos : BlockPos.betweenClosed(pos.offset(-4, -4, -4), pos.offset(4, 4, 4))) {
             BlockState state = level.getBlockState(blockPos);
@@ -154,12 +128,11 @@ public class PrimedLanternBerry extends Entity implements TraceableEntity {
 
             sl.getEntitiesOfClass(LivingEntity.class, area).forEach(entity -> {
                 if (entity == excludeEntity) return;
-                DamageQueue.hurt(entity, 15.0F, DamageTypes.ON_FIRE.location(), owner);
-                DamageQueue.accelerate(entity, 1);
+                Damage.hurt(entity, DamageTypes.ON_FIRE.location().toString(), 20.0F);
                 entity.setRemainingFireTicks(entity.getRemainingFireTicks() + 200);
             });
 
-            Knockback.point(sl, pos.getCenter(), 4.0f, 3.0f, e -> true);
+            Knockback.point(sl, pos.getCenter(), 1.5f, 1.0f, e -> true);
         }
     }
 

@@ -1,7 +1,6 @@
 package com.thelema.thrive.generic.block;
 
 import com.thelema.thrive.generic.blockentity.BiomeCoreBlockEntity;
-import com.thelema.thrive.generic.blockentity.convertor.ConvertorRegistry;
 import com.thelema.thrive.generic.blockentity.cap.Surface;
 import com.thelema.thrive.register.BlockEntityRegister;
 import net.minecraft.core.BlockPos;
@@ -54,10 +53,8 @@ public class BiomeCore extends Block implements EntityBlock {
                          BlockState newState, boolean moved) {
         if (!level.isClientSide && state.getBlock() != newState.getBlock()
                 && level.getBlockEntity(pos) instanceof BiomeCoreBlockEntity be) {
-            be.rotator.clear();   // 转换物品不掉落
+            be.resetConversion();
             be.surface.dropItem();
-            be.activeConvertor = null;
-            be.activeSource = null;
         }
         super.onRemove(state, level, pos, newState, moved);
     }
@@ -70,7 +67,7 @@ public class BiomeCore extends Block implements EntityBlock {
         if (!(level.getBlockEntity(pos) instanceof BiomeCoreBlockEntity be))
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 
-        // ─── 潜行右键：强制终止 ───
+        // 潜行右键：强制终止
         if (player.isShiftKeyDown() && !be.rotator.isEmpty()) {
             terminate(level, pos, be, player);
             return ItemInteractionResult.SUCCESS;
@@ -78,7 +75,7 @@ public class BiomeCore extends Block implements EntityBlock {
 
         Surface surface = be.surface;
 
-        // 空手：取出 Surface 物品
+        // 空手取出
         if (stack.isEmpty()) {
             if (surface.isEmpty()) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
             ItemStack taken = surface.getStack().copy();
@@ -89,14 +86,14 @@ public class BiomeCore extends Block implements EntityBlock {
             return ItemInteractionResult.SUCCESS;
         }
 
-        // 手上有物品：放入 / 替换 Surface，重启 5 秒倒计时
+        // 放入 / 替换
         ItemStack taken = surface.getStack().copy();
         surface.set(stack.copy(), player.getDirection());
         if (!player.isCreative()) stack.setCount(0);
         if (!taken.isEmpty() && !player.getInventory().add(taken)) player.drop(taken, false);
         level.playSound(null, pos, SoundEvents.ITEM_FRAME_ADD_ITEM,
                 SoundSource.BLOCKS, 0.75F, 1.0F);
-        be.checkTimer = BiomeCoreBlockEntity.CHECK_INTERVAL;
+        be.checkTimer = 100;
         return ItemInteractionResult.SUCCESS;
     }
 
@@ -113,10 +110,6 @@ public class BiomeCore extends Block implements EntityBlock {
         player.push(dir.x * 1.5, 0.4, dir.z * 1.5);
         player.hurtMarked = true;
 
-        be.rotator.clear();
-        be.convertTick = 0;
-        be.checkTimer = 0;
-        be.activeConvertor = null;
-        be.activeSource = null;
+        be.resetConversion();
     }
 }

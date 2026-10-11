@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "building",
+  "ingredients": [
+    { "item": "minecraft:moss_block" },
+    { "item": "minecraft:moss_block" },
+    { "item": "minecraft:moss_block" },
+    { "item": "minecraft:moss_block" },
+    { "item": "minecraft:bone_block" },
+    { "item": "minecraft:bone_block" },
+    { "item": "minecraft:bone_block" },
+    { "item": "minecraft:bone_block" },
+    { "item": "minecraft:glow_berries" }
+  ],
+  "result": {
+    "id": "thrive:rampant_moss",
+    "count": 1
+  }
+}

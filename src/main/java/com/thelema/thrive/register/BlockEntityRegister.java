@@ -20,6 +20,7 @@ public class BlockEntityRegister {
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BiomeCoreBlockEntity>> THRIVE_CORE;
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SunBerryBlockEntity>> SUN_BERRY;
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GardenHiveBlockEntity>> GARDEN_HIVE;
 
     static {
 
@@ -30,7 +31,12 @@ public class BlockEntityRegister {
         THRIVE_CORE = BLOCK_ENTITY.register("thrive_core", () -> BlockEntityType.Builder
                 .of(BiomeCoreBlockEntity::new, BlockRegister.BIOME_CORE.get())
                 .build(null));
+
+        GARDEN_HIVE = BLOCK_ENTITY.register("garden_hive", () -> BlockEntityType.Builder
+                .of(GardenHiveBlockEntity::new, BlockRegister.GARDEN_HIVE.get())
+                .build(null));
     }
 
 
 }
+

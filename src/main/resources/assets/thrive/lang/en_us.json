@@ -11,6 +11,8 @@
   "block.thrive.tall_grass_bottom": "Tall Grass Bottom",
 
   "block.thrive.biome_core": "Biome Core",
+  "block.thrive.grass_block": "Grass Block",
+  "block.thrive.garden_hive": "Garden Hive",
 
 
   "itemGroup.thrive": "Thrive",
@@ -20,6 +22,8 @@
   "item.thrive.hunger_snack": "Hunger Snack",
   "item.thrive.fresh_grass_cake": "Fresh Grass Cake",
   "item.thrive.biome_twig": "Biome Twig",
+  "item.thrive.garden_bee_spawn_egg": "Garden Bee Spawn Egg",
+  "item.thrive.garden_honey": "Garden Honey",
 
 
   "effect.thrive.lantern_berry_juice": "Lantern Berry Juice",
@@ -36,6 +40,7 @@
   "entity.thrive.grass_land_sheep": "Grass Land Sheep",
   "entity.thrive.grass_land_sheep.title": "Grass Devourer",
   "entity.thrive.sun": "Sun",
+  "entity.thrive.garden_bee": "Garden Bee",
 
   "subtitles.thrive.sun_berry_ignite": "Sun Berry ignites",
   "subtitles.thrive.sun_berry_deflagrate": "Sun Berry deflagrates",

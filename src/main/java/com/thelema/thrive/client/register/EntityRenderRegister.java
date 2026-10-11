@@ -2,6 +2,7 @@ package com.thelema.thrive.client.register;
 
 import com.thelema.thrive.client.render.entity.*;
 import com.thelema.thrive.register.EntityRegister;
+import net.minecraft.client.renderer.entity.BeeRenderer;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -18,6 +19,7 @@ public class EntityRenderRegister {
         event.registerEntityRenderer(EntityRegister.PRIMED_LANTERN_BERRY.get(), PrimedLanternBerryRenderer::new);
         event.registerEntityRenderer(EntityRegister.LANTERN_BERRY_CREEPER.get(), LanternBerryCreeperRenderer::new);
         event.registerEntityRenderer(EntityRegister.GRASS_LAND_SHEEP.get(), GrassLandSheepRenderer::new);
+        event.registerEntityRenderer(EntityRegister.GARDEN_BEE.get(), BeeRenderer::new);
         event.registerEntityRenderer(EntityRegister.PRIMED_SUN_BERRY.get(), PrimedSunBerryRenderer::new);
         event.registerEntityRenderer(EntityRegister.SUN.get(), SunRenderer::new);
     }

@@ -11,6 +11,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.common.DeferredSpawnEggItem;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -33,6 +34,8 @@ public class ItemRegister {
     public static final DeferredHolder<Item, Item> FRESH_GRASS_CAKE;
     public static final DeferredHolder<Item, Item> BIOME_TWIG;
     public static final DeferredHolder<Item, Item> RAMPANT_MOSS;
+    public static final DeferredHolder<Item, Item> GARDEN_BEE_SPAWN_EGG;
+    public static final DeferredHolder<Item, Item> GARDEN_HONEY;
 
     // 物品
     static {
@@ -59,5 +62,14 @@ public class ItemRegister {
         // 方块物品，堆叠上限 1
         RAMPANT_MOSS = ITEM.register("rampant_moss", () -> new BlockItem(BlockRegister.RAMPANT_MOSS.get(),
                 new Item.Properties().stacksTo(1)));
+
+        GARDEN_BEE_SPAWN_EGG = ITEM.register("garden_bee_spawn_egg", () -> new DeferredSpawnEggItem(
+                EntityRegister.GARDEN_BEE,
+                0xFFD700,   // 底：金黄色
+                0xFFFFFF,   // 高光：白
+                new Item.Properties()));
+
+        GARDEN_HONEY = simpleItem("garden_honey");
     }
 }
+

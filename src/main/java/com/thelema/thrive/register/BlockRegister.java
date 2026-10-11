@@ -5,6 +5,7 @@ import com.thelema.thrive.generic.block.*;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.GrassBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
@@ -39,6 +40,7 @@ public class BlockRegister {
     public static final DeferredHolder<Block, Block> GRASS_BLOCK;
     public static final DeferredHolder<Block, Block> BIOME_CORE;
     public static final DeferredHolder<Block, Block> RAMPANT_MOSS;
+    public static final DeferredHolder<Block, Block> GARDEN_HIVE;
 
     static {
 
@@ -55,12 +57,7 @@ public class BlockRegister {
 
         SUN_BERRY = registerWithItem("sun_berry", SunBerry::new);
 
-        GRASS_BLOCK = registerWithItem("grass_block",
-                ()-> new Block(BlockBehaviour.Properties.of()
-                        .mapColor(MapColor.GRASS)
-                        .strength(0.6F)
-                        .sound(SoundType.GRASS)
-                ));
+        GRASS_BLOCK = registerWithItem("grass_block", () -> new GrassBlock(BlockBehaviour.Properties.of().mapColor(MapColor.GRASS).randomTicks().strength(0.6F).sound(SoundType.GRASS)));
 
         // 群系核心
         BIOME_CORE = registerWithItem("biome_core", BiomeCore::new);
@@ -68,9 +65,12 @@ public class BlockRegister {
         // 疯长的苔藓块：摆到群系核心上启动转换。堆叠上限为 1，物品在 ItemRegister 里单独注册
         RAMPANT_MOSS = BLOCK.register("rampant_moss", RampantMoss::new);
 
+        GARDEN_HIVE = registerWithItem("garden_hive", GardenHive::new);
+
     }
 
 
 
 
 }
+

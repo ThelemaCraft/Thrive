@@ -5,7 +5,7 @@ import com.thelema.thrive.generic.entity.*;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.entity.animal.Bee;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -27,6 +27,7 @@ public class EntityRegister {
     public static final DeferredHolder<EntityType<?>, EntityType<PrimedLanternBerry>> PRIMED_LANTERN_BERRY;
     public static final DeferredHolder<EntityType<?>, EntityType<LanternBerryCreeper>> LANTERN_BERRY_CREEPER;
     public static final DeferredHolder<EntityType<?>, EntityType<GrassLandSheep>> GRASS_LAND_SHEEP;
+    public static final DeferredHolder<EntityType<?>, EntityType<GardenBee>> GARDEN_BEE;
 
     public static final DeferredHolder<EntityType<?>, EntityType<PrimedSunBerry>> PRIMED_SUN_BERRY =
             ENTITIES.register("primed_sun_berry", () -> EntityType.Builder
@@ -66,14 +67,19 @@ public class EntityRegister {
         GRASS_LAND_SHEEP = ENTITIES.register("grass_land_sheep", () -> EntityType.Builder.of(GrassLandSheep::new, MobCategory.AMBIENT)
                 .sized(1.0f, 1.0f)
                 .build("grass_land_sheep"));
+
+        GARDEN_BEE = ENTITIES.register("garden_bee", () -> EntityType.Builder.of(GardenBee::new, MobCategory.CREATURE)
+                .sized(0.7f, 0.6f)
+                .build("garden_bee"));
     }
 
 
     // ========== 事件注册 ==========
     @SubscribeEvent
     public static void registerAttributes(EntityAttributeCreationEvent event) {
-        event.put(MOSSY_ZOMBIE.get(), Zombie.createAttributes().build());
+        event.put(MOSSY_ZOMBIE.get(), MossyZombie.createAttributes().build());
         event.put(LANTERN_BERRY_CREEPER.get(), LanternBerryCreeper.createAttributes().build());
         event.put(GRASS_LAND_SHEEP.get(), GrassLandSheep.createAttributes().build());
+        event.put(GARDEN_BEE.get(), Bee.createAttributes().build());
     }
 }
