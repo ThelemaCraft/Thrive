@@ -1,68 +1,278 @@
 package com.thelema.thrive.generic.entity;
 
-import com.thelema.thrive.ThriveMod;
-import com.thelema.thrive.generic.blockentity.GardenHiveBlockEntity;
-import com.thelema.thrive.generic.entity.goal.ConvertHiveGoal;
 import com.thelema.thrive.register.EntityRegister;
-import net.minecraft.core.particles.DustParticleOptions;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceKey;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.ItemTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.damagesource.DamageSource;
-import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.NeutralMob;
+import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.animal.Bee;
+import net.minecraft.world.entity.ai.control.FlyingMoveControl;
+import net.minecraft.world.entity.ai.control.LookControl;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.Goal;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.OwnerHurtByTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.OwnerHurtTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.ResetUniversalAngerTargetGoal;
+import net.minecraft.world.entity.ai.navigation.FlyingPathNavigation;
+import net.minecraft.world.entity.ai.navigation.PathNavigation;
+import net.minecraft.world.entity.ai.util.AirAndWaterRandomPos;
+import net.minecraft.world.entity.ai.util.HoverRandomPos;
+import net.minecraft.world.entity.animal.FlyingAnimal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.biome.Biome;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.pathfinder.PathType;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
-import org.joml.Vector3f;
 
+import java.util.EnumSet;
 import java.util.UUID;
 
-@EventBusSubscriber
-public class GardenBee extends Bee {
+public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal {
 
-    /** 偏好花（Item）。null = 未驯服。 */
+    public static final float TAME_CHANCE = 0.33F;
+    public static final int ATTACK_INTERVAL = 40;
+    public static final int LUNGE_TICKS = 10;
+    private static final int IMPACT_TICK = 5;
+
+    private static final EntityDataAccessor<Integer> DATA_REMAINING_ANGER_TIME =
+            SynchedEntityData.defineId(GardenBee.class, EntityDataSerializers.INT);
+    private static final EntityDataAccessor<Boolean> DATA_ROLLING =
+            SynchedEntityData.defineId(GardenBee.class, EntityDataSerializers.BOOLEAN);
+
     @Nullable public Item favoriteFlower;
-
-    /** 携带花粉的花源。null = 无。 */
     @Nullable public Item carriedPollen;
+    @Nullable public BlockPos home;
 
-    /** 驯服者。null = 未绑定。 */
-    @Nullable public UUID ownerUUID;
+    private int attackCooldown;
+    private int lungeTicks;
+    @Nullable private Entity pendingTarget;
+    @Nullable private UUID persistentAngerTarget;
 
-    public GardenBee(EntityType<? extends Bee> type, Level level) {
+    public float rollAmount;
+    public float rollAmountO;
+
+    public GardenBee(EntityType<? extends GardenBee> type, Level level) {
         super(type, level);
+        this.moveControl = new FlyingMoveControl(this, 20, true);
+        this.lookControl = new LookControl(this);
+        this.setPathfindingMalus(PathType.DANGER_FIRE, -1.0F);
+        this.setPathfindingMalus(PathType.WATER, -1.0F);
+        this.setPathfindingMalus(PathType.WATER_BORDER, 16.0F);
+    }
+
+    // ==================== 基础 ====================
+
+    @Override
+    protected void defineSynchedData(SynchedEntityData.Builder builder) {
+        super.defineSynchedData(builder);
+        builder.define(DATA_REMAINING_ANGER_TIME, 0);
+        builder.define(DATA_ROLLING, false);
+    }
+
+    @Override
+    protected PathNavigation createNavigation(Level level) {
+        FlyingPathNavigation nav = new FlyingPathNavigation(this, level) {
+            @Override
+            public boolean isStableDestination(BlockPos pos) {
+                return !this.level.getBlockState(pos.below()).isAir();
+            }
+        };
+        nav.setCanOpenDoors(false);
+        nav.setCanFloat(false);
+        nav.setCanPassDoors(true);
+        return nav;
     }
 
     @Override
     protected void registerGoals() {
-        super.registerGoals();
-        this.goalSelector.addGoal(1, new ConvertHiveGoal(this));
+        this.goalSelector.addGoal(0, new MeleeAttackGoal(this, 1.4, true));
+        this.goalSelector.addGoal(1, new FloatGoal(this));
+        this.goalSelector.addGoal(8, new WanderGoal());
+
+        this.targetSelector.addGoal(1, new OwnerHurtByTargetGoal(this));
+        this.targetSelector.addGoal(2, new OwnerHurtTargetGoal(this));
+        this.targetSelector.addGoal(3, new HurtByTargetGoal(this));
+        this.targetSelector.addGoal(4, new NearestAttackableTargetGoal<>(
+                this, Player.class, 10, true, false, this::isAngryAt));
+        this.targetSelector.addGoal(5, new ResetUniversalAngerTargetGoal<>(this, true));
+    }
+
+    public static AttributeSupplier.Builder createAttributes() {
+        return Mob.createMobAttributes()
+                .add(Attributes.MAX_HEALTH, 10.0)
+                .add(Attributes.FLYING_SPEED, 0.6)
+                .add(Attributes.MOVEMENT_SPEED, 0.3)
+                .add(Attributes.ATTACK_DAMAGE, 4.0)
+                .add(Attributes.FOLLOW_RANGE, 48.0);
     }
 
     @Override
-    public boolean wantsToEnterHive() {
-        // 没找到 GardenHive 之前，不进任何巢
-        if (!(level().getBlockEntity(getHivePos()) instanceof GardenHiveBlockEntity)) return false;
-        return super.wantsToEnterHive();
+    protected void checkFallDamage(double y, boolean onGround, BlockState state, BlockPos pos) {
+    }
+
+    // ==================== 繁殖 ====================
+
+    @Override
+    public boolean isFood(ItemStack stack) {
+        return stack.is(ItemTags.FLOWERS);
+    }
+
+    @Nullable
+    @Override
+    public AgeableMob getBreedOffspring(ServerLevel level, AgeableMob otherParent) {
+        GardenBee child = EntityRegister.GARDEN_BEE.get().create(level);
+        if (child != null && this.isTame()) {
+            child.setTame(true, false);
+            child.setOwnerUUID(this.getOwnerUUID());
+        }
+        return child;
+    }
+
+    @Override
+    public boolean isFlying() {
+        return !this.onGround();
+    }
+
+    // ==================== 驯服 ====================
+
+    @Override
+    public InteractionResult mobInteract(Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+
+        if (!this.isTame() && stack.is(ItemTags.FLOWERS)) {
+            if (!this.level().isClientSide) {
+                if (this.random.nextFloat() < TAME_CHANCE) {
+                    this.tame(player);
+                    this.favoriteFlower = stack.getItem();
+                    this.setTarget(null);
+                    this.setRemainingPersistentAngerTime(0);
+                    this.level().broadcastEntityEvent(this, (byte) 7);
+                } else {
+                    this.level().broadcastEntityEvent(this, (byte) 6);
+                }
+                if (!player.isCreative()) stack.shrink(1);
+            }
+            return InteractionResult.sidedSuccess(this.level().isClientSide);
+        }
+
+        return super.mobInteract(player, hand);
+    }
+
+    /** 主人、同主人宠物都不设为攻击目标。 */
+    @Override
+    public void setTarget(@Nullable LivingEntity target) {
+        if (target != null && this.isTame()) {
+            UUID myOwner = this.getOwnerUUID();
+            if (myOwner != null) {
+                if (myOwner.equals(target.getUUID())) return;
+                if (target instanceof TamableAnimal t && t.isTame()
+                        && myOwner.equals(t.getOwnerUUID())) return;
+            }
+        }
+        super.setTarget(target);
+    }
+
+    // ==================== 攻击 ====================
+
+    @Override
+    public boolean doHurtTarget(Entity target) {
+        if (this.attackCooldown > 0) return false;
+        this.pendingTarget = target;
+        this.attackCooldown = ATTACK_INTERVAL;
+        this.lungeTicks = LUNGE_TICKS;
+        return true;
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+
+        if (!this.level().isClientSide) {
+            if (this.attackCooldown > 0) this.attackCooldown--;
+            if (this.lungeTicks > 0) this.lungeTicks--;
+
+            if (this.pendingTarget != null && this.lungeTicks == LUNGE_TICKS - IMPACT_TICK) {
+                if (this.pendingTarget.isAlive() && this.pendingTarget.distanceToSqr(this) < 9.0) {
+                    super.doHurtTarget(this.pendingTarget);
+                }
+                this.pendingTarget = null;
+            }
+
+            this.entityData.set(DATA_ROLLING, this.lungeTicks > 0);
+        }
+
+        this.updateRollAmount();
+    }
+
+    private void updateRollAmount() {
+        this.rollAmountO = this.rollAmount;
+        if (this.entityData.get(DATA_ROLLING)) {
+            this.rollAmount = Math.min(1.0F, this.rollAmount + 0.2F);
+        } else {
+            this.rollAmount = Math.max(0.0F, this.rollAmount - 0.24F);
+        }
+    }
+
+    public float getRollAmount(float partialTick) {
+        return Mth.lerp(partialTick, this.rollAmountO, this.rollAmount);
+    }
+
+    // ==================== NeutralMob ====================
+
+    @Override
+    public int getRemainingPersistentAngerTime() {
+        return this.entityData.get(DATA_REMAINING_ANGER_TIME);
+    }
+
+    @Override
+    public void setRemainingPersistentAngerTime(int time) {
+        this.entityData.set(DATA_REMAINING_ANGER_TIME, time);
+    }
+
+    @Nullable
+    @Override
+    public UUID getPersistentAngerTarget() {
+        return this.persistentAngerTarget;
+    }
+
+    @Override
+    public void setPersistentAngerTarget(@Nullable UUID target) {
+        this.persistentAngerTarget = target;
+    }
+
+    @Override
+    public void startPersistentAngerTimer() {
+        this.setRemainingPersistentAngerTime(400);
+    }
+
+    @Override
+    public void customServerAiStep() {
+        super.customServerAiStep();
+        if (!this.level().isClientSide) {
+            this.updatePersistentAnger((ServerLevel) this.level(), false);
+        }
     }
 
     // ==================== NBT ====================
@@ -70,110 +280,60 @@ public class GardenBee extends Bee {
     @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
-        if (favoriteFlower != null) tag.putString("FavoriteFlower", key(favoriteFlower));
-        if (carriedPollen != null) tag.putString("CarriedPollen", key(carriedPollen));
-        if (ownerUUID != null) tag.putUUID("Owner", ownerUUID);
+        if (favoriteFlower != null)
+            tag.putString("FavoriteFlower", BuiltInRegistries.ITEM.getKey(favoriteFlower).toString());
+        if (carriedPollen != null)
+            tag.putString("CarriedPollen", BuiltInRegistries.ITEM.getKey(carriedPollen).toString());
+        if (home != null)
+            tag.putLong("Home", home.asLong());
+        this.addPersistentAngerSaveData(tag);
     }
 
     @Override
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
-        if (tag.contains("FavoriteFlower")) favoriteFlower = parse(tag.getString("FavoriteFlower"));
-        if (tag.contains("CarriedPollen")) carriedPollen = parse(tag.getString("CarriedPollen"));
-        if (tag.hasUUID("Owner")) ownerUUID = tag.getUUID("Owner");
+        if (tag.contains("FavoriteFlower"))
+            favoriteFlower = BuiltInRegistries.ITEM.get(ResourceLocation.parse(tag.getString("FavoriteFlower")));
+        if (tag.contains("CarriedPollen"))
+            carriedPollen = BuiltInRegistries.ITEM.get(ResourceLocation.parse(tag.getString("CarriedPollen")));
+        if (tag.contains("Home"))
+            home = BlockPos.of(tag.getLong("Home"));
+        this.readPersistentAngerSaveData(this.level(), tag);
     }
 
-    private static String key(Item item) {
-        return BuiltInRegistries.ITEM.getKey(item).toString();
-    }
+    // ==================== 飞行游荡 ====================
 
-    @Nullable
-    private static Item parse(String id) {
-        return BuiltInRegistries.ITEM.get(ResourceLocation.parse(id));
-    }
-
-    // ==================== 驯服 ====================
-
-    @Override
-    public InteractionResult mobInteract(Player player, InteractionHand hand) {
-        if (favoriteFlower != null) return super.mobInteract(player, hand);
-
-        ItemStack stack = player.getItemInHand(hand);
-        if (stack.isEmpty() || !stack.is(ItemTags.FLOWERS)) return super.mobInteract(player, hand);
-
-        if (!level().isClientSide) {
-            if (carriedPollen != null) shakeOffPollen();
-
-            this.favoriteFlower = stack.getItem();
-            this.ownerUUID = player.getUUID();
-            if (!player.isCreative()) stack.shrink(1);
-            playSound(SoundEvents.BEE_POLLINATE, 1.0F, 1.0F);
+    class WanderGoal extends Goal {
+        WanderGoal() {
+            this.setFlags(EnumSet.of(Goal.Flag.MOVE));
         }
-        return InteractionResult.sidedSuccess(level().isClientSide);
-    }
 
-    /** 清除携带的花粉，洒 DUST 粒子。 */
-    private void shakeOffPollen() {
-        this.carriedPollen = null;
-        if (level() instanceof ServerLevel sl) {
-            sl.sendParticles(new DustParticleOptions(new Vector3f(1.0F, 0.85F, 0.25F), 1.0F),
-                    getX(), getY() + 0.5, getZ(),
-                    20, 0.3, 0.3, 0.3, 0.05);
+        @Override
+        public boolean canUse() {
+            return GardenBee.this.navigation.isDone() && GardenBee.this.random.nextInt(10) == 0;
         }
-        playSound(SoundEvents.BEE_POLLINATE, 1.0F, 1.0F);
-    }
 
-    // ==================== 蜇人不死 ====================
+        @Override
+        public boolean canContinueToUse() {
+            return GardenBee.this.navigation.isInProgress();
+        }
 
-    @Override
-    public boolean doHurtTarget(Entity target) {
-        DamageSource src = this.damageSources().sting(this);
-        float dmg = (float) this.getAttributeValue(Attributes.ATTACK_DAMAGE);
-        boolean hit = target.hurt(src, dmg);
-
-        if (hit) {
-            if (target instanceof LivingEntity living) {
-                living.setStingerCount(living.getStingerCount() + 1);
-                int poisonSec = switch (level().getDifficulty()) {
-                    case NORMAL -> 10;
-                    case HARD -> 18;
-                    default -> 0;
-                };
-                if (poisonSec > 0) {
-                    living.addEffect(new MobEffectInstance(MobEffects.POISON, poisonSec * 20, 0), this);
-                }
+        @Override
+        public void start() {
+            Vec3 pos = this.findPos();
+            if (pos != null) {
+                GardenBee.this.navigation.moveTo(
+                        GardenBee.this.navigation.createPath(BlockPos.containing(pos), 1), 1.0);
             }
-            playSound(SoundEvents.BEE_STING, 1.0F, 1.0F);
-            // 不调 setHasStung(true)、不调 stopBeingAngry()
         }
-        return hit;
-    }
 
-    // ==================== 群系转化 ====================
-
-    /** 花园群系。原版蜜蜂踏入即转化。 */
-    static final ResourceKey<Biome> GARDEN = ResourceKey.create(
-            Registries.BIOME, ResourceLocation.fromNamespaceAndPath(ThriveMod.MOD_ID, "garden"));
-
-    /**
-     * 原版蜜蜂进入花园群系  转成花园蜜蜂。
-     * NBT 整体搬运，保留血量、蜂工、采蜜进度；"已蜇"不继承花园蜜蜂蜇人不死。
-     */
-    @SubscribeEvent
-    public static void onBeeTick(EntityTickEvent.Post event) {
-        if (!(event.getEntity() instanceof Bee bee) || bee.getClass() != Bee.class) return;
-        if (!(bee.level() instanceof ServerLevel level)) return;
-        if (!level.getBiome(bee.blockPosition()).is(GARDEN)) return;
-
-        GardenBee garden = EntityRegister.GARDEN_BEE.get().create(level);
-        if (garden == null) return;
-
-        CompoundTag tag = bee.saveWithoutId(new CompoundTag());
-        tag.remove(Bee.TAG_HAS_STUNG);
-        tag.remove("UUID");   // 不能继承旧 UUID，否则撞上还在场上的旧蜜蜂，addFreshEntity 会被拒
-        garden.load(tag);
-
-        level.addFreshEntity(garden);
-        bee.discard();
+        @Nullable
+        private Vec3 findPos() {
+            Vec3 dir = GardenBee.this.getViewVector(0.0F);
+            Vec3 pos = HoverRandomPos.getPos(GardenBee.this, 8, 7,
+                    dir.x, dir.z, (float) (Math.PI / 2), 3, 1);
+            return pos != null ? pos : AirAndWaterRandomPos.getPos(
+                    GardenBee.this, 8, 4, -2, dir.x, dir.z, (float) (Math.PI / 2));
+        }
     }
 }

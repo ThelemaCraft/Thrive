@@ -80,6 +80,6 @@ public class EntityRegister {
         event.put(MOSSY_ZOMBIE.get(), MossyZombie.createAttributes().build());
         event.put(LANTERN_BERRY_CREEPER.get(), LanternBerryCreeper.createAttributes().build());
         event.put(GRASS_LAND_SHEEP.get(), GrassLandSheep.createAttributes().build());
-        event.put(GARDEN_BEE.get(), Bee.createAttributes().build());
+        event.put(GARDEN_BEE.get(), GardenBee.createAttributes().build());
     }
 }
