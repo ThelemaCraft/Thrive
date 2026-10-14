@@ -23,13 +23,49 @@
   "item.thrive.fresh_grass_cake": "Fresh Grass Cake",
   "item.thrive.biome_twig": "Biome Twig",
   "item.thrive.garden_bee_spawn_egg": "Garden Bee Spawn Egg",
-  "item.thrive.garden_honey": "Garden Honey",
+  "item.thrive.dandelion_honey": "Dandelion Honey",
+  "item.thrive.poppy_honey": "Poppy Honey",
+  "item.thrive.blue_orchid_honey": "Blue Orchid Honey",
+  "item.thrive.allium_honey": "Allium Honey",
+  "item.thrive.azure_bluet_honey": "Azure Bluet Honey",
+  "item.thrive.red_tulip_honey": "Red Tulip Honey",
+  "item.thrive.orange_tulip_honey": "Orange Tulip Honey",
+  "item.thrive.white_tulip_honey": "White Tulip Honey",
+  "item.thrive.pink_tulip_honey": "Pink Tulip Honey",
+  "item.thrive.oxeye_daisy_honey": "Oxeye Daisy Honey",
+  "item.thrive.cornflower_honey": "Cornflower Honey",
+  "item.thrive.lily_of_the_valley_honey": "Lily of the Valley Honey",
+  "item.thrive.wither_rose_honey": "Wither Rose Honey",
+  "item.thrive.torchflower_honey": "Torchflower Honey",
+  "item.thrive.sunflower_honey": "Sunflower Honey",
+  "item.thrive.lilac_honey": "Lilac Honey",
+  "item.thrive.peony_honey": "Peony Honey",
+  "item.thrive.rose_bush_honey": "Rose Bush Honey",
+  "item.thrive.pitcher_plant_honey": "Pitcher Plant Honey",
+  "item.thrive.flowering_azalea_leaves_honey": "Flowering Azalea Leaves Honey",
+  "item.thrive.flowering_azalea_honey": "Flowering Azalea Honey",
+  "item.thrive.mangrove_propagule_honey": "Mangrove Propagule Honey",
+  "item.thrive.cherry_leaves_honey": "Cherry Leaves Honey",
+  "item.thrive.pink_petals_honey": "Pink Petals Honey",
+  "item.thrive.chorus_flower_honey": "Chorus Flower Honey",
+  "item.thrive.spore_blossom_honey": "Spore Blossom Honey",
 
+  "item.minecraft.potion.effect.wither": "Potion of Wither",
+  "item.minecraft.splash_potion.effect.wither": "Splash Potion of Wither",
+  "item.minecraft.lingering_potion.effect.wither": "Lingering Potion of Wither",
+  "item.minecraft.tipped_arrow.effect.wither": "Arrow of Wither",
+
+  "item.minecraft.potion.effect.levitation": "Potion of Levitation",
+  "item.minecraft.splash_potion.effect.levitation": "Splash Potion of Levitation",
+  "item.minecraft.lingering_potion.effect.levitation": "Lingering Potion of Levitation",
+  "item.minecraft.tipped_arrow.effect.levitation": "Arrow of Levitation",
 
   "effect.thrive.lantern_berry_juice": "Lantern Berry Juice",
   "effect.thrive.super_hunger": "Super Hunger",
   "effect.thrive.appetite": "Appetite",
   "effect.thrive.blinding": "Blinding",
+
+
 
   "biome.thrive.moss_land": "Moss Land",
   "biome.thrive.flower_sea": "Flower Sea",
@@ -46,6 +82,19 @@
   "subtitles.thrive.sun_berry_deflagrate": "Sun Berry deflagrates",
 
   "death.attack.sun": "%1$s was incinerated by the sun",
-  "death.attack.sun.player": "%1$s was incinerated by %2$s"
+  "death.attack.sun.player": "%1$s was incinerated by %2$s",
+
+
+  "config.jade.plugin_thrive.garden_bee": "Garden Bee",
+  "jade.thrive.garden_bee.favorite": "Favorite: %s",
+  "jade.thrive.garden_bee.home": "Home: %d, %d, %d",
+  "jade.thrive.garden_bee.pollen": "Pollen: %s",
+  "config.jade.plugin_thrive.garden_hive": "Garden Hive",
+  "jade.thrive.garden_hive.bees": "Bees: %d/%d",
+  "jade.thrive.garden_hive.nectar": "Nectar:",
+  "jade.thrive.garden_hive.honey": "Honey:",
+  "jade.thrive.garden_hive.progress": "Brewing: %d%%",
+
+  "jei.thrive.garden_hive": "Garden Hive Brewing"
 
 }

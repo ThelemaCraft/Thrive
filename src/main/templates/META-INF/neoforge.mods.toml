@@ -17,19 +17,18 @@ ordering="NONE"
 side="BOTH"
 
 [[dependencies."${mod_id}"]]
-modId="thelemalib"
-mandatory=true
-versionRange="[1.0.0,)"
-ordering="NONE"
+modId="jade"
+mandatory=false
+versionRange="[15.10,)"
+ordering="AFTER"
 side="BOTH"
 
 [[dependencies."${mod_id}"]]
-modId="terrablender"
-mandatory=true
-versionRange="[1.0.0,)"
-ordering="NONE"
+modId="jei"
+mandatory=false
+versionRange="[19.0,)"
+ordering="AFTER"
 side="BOTH"
-
 
 [[mixins]]
 config="${mod_id}.mixins.json"

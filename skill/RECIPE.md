@@ -1,206 +1,143 @@
-# 添加配方
+# 添加药水
 
-纯 JSON，不需要 Java 代码。一条配方一个文件：
+## 一、注册 Potion
 
-```
-data/thrive/recipe/<name>.json
-```
+`register/PotionRegister.java`：
 
-`<name>` 是配方 id，任意取，通常描述用途（`lantern_berry_bucket`、`moss_block_from_smelting`）。
+```java
+@EventBusSubscriber
+public class PotionRegister {
 
-## 一、有序合成 Shaped
+    static final DeferredRegister<Potion> POTION =
+            DeferredRegister.create(Registries.POTION, ThriveMod.MOD_ID);
 
-```json
-{
-  "type": "minecraft:crafting_shaped",
-  "pattern": [
-    "ABA",
-    "B B",
-    "ABA"
-  ],
-  "key": {
-    "A": { "item": "minecraft:stick" },
-    "B": { "item": "thrive:lantern_berry" }
-  },
-  "result": {
-    "id": "thrive:lantern_berry_bucket",
-    "count": 1
-  }
+    public static final DeferredHolder<Potion, Potion> SUPER_LONG_FIRE_RESISTANCE;
+
+    static {
+        SUPER_LONG_FIRE_RESISTANCE = POTION.register("super_long_fire_resistance",
+                () -> new Potion(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 38400)));
+    }
+
+    public static void register(IEventBus bus) {
+        POTION.register(bus);
+    }
 }
 ```
 
-**`pattern` 必须正好 3 行**，每行 1~3 字符。空格 = 空槽。字符与 `key` 对应，只能用字母（大小写敏感）。
+`MobEffectInstance(effect, duration, amplifier)`：amplifier 0 = I 级、1 = II 级、2 = III 级。
 
-**`key` 的值**可以是：
+主类调 `PotionRegister.register(bus)`。
 
-| 写法 | 含义 |
+### name 参数
+
+`new Potion(String name, MobEffectInstance... effects)` 第一参是翻译键尾缀。
+
+```java
+new Potion(new MobEffectInstance(...))                    // name = null
+new Potion("fire_resistance", new MobEffectInstance(...)) // name = "fire_resistance"
+```
+
+| name | 翻译键 |
 |---|---|
-| `{ "item": "minecraft:stick" }` | 物品 |
-| `{ "tag": "minecraft:planks" }` | 标签 |
-| `{ "item": "minecraft:stone", "count": 2 }` | 1.21 起不推荐，key 里 count 无效 |
+| `null` | `item.minecraft.potion.effect.<注册路径>` |
+| `"fire_resistance"` | `item.minecraft.potion.effect.fire_resistance` |
 
-## 二、无序合成 Shapeless
+## 二、翻译键规则
 
-```json
-{
-  "type": "minecraft:crafting_shapeless",
-  "ingredients": [
-    { "item": "thrive:lantern_berry" },
-    { "item": "minecraft:glass_bottle" }
-  ],
-  "result": {
-    "id": "thrive:lantern_berry_juice_bucket",
-    "count": 1
-  }
-}
-```
+每种药水有**四种形态**，各有独立键：
 
-**`ingredients` 顺序无关**。数量靠数组重复：
-
-```json
-"ingredients": [
-  { "item": "minecraft:sugar" },
-  { "item": "minecraft:sugar" },
-  { "item": "minecraft:sugar" }
-]
-```
-
-1.21 起**没有 `{ "item": "...", "count": 3 }`** —— 那种写法失效。
-
-## 三、熔炉 Smelting
-
-```json
-{
-  "type": "minecraft:smelting",
-  "ingredient": { "item": "minecraft:clay_ball" },
-  "result": { "id": "minecraft:brick" },
-  "experience": 0.3,
-  "cookingtime": 200
-}
-```
-
-| 字段 | 含义 |
+| 形态 | 键 |
 |---|---|
-| `experience` | 0.0~1.0，产出时给的经验 |
-| `cookingtime` | tick 数。原版铁 200、食物 100~600 |
+| 普通药水 | `item.minecraft.potion.effect.<name>` |
+| 喷溅药水 | `item.minecraft.splash_potion.effect.<name>` |
+| 滞留药水 | `item.minecraft.lingering_potion.effect.<name>` |
+| 药水箭 | `item.minecraft.tipped_arrow.effect.<name>` |
 
-**`result` 是对象**，`{ "id": "...", "count": N }`。不需要 `count` 时省略。
+`<name>` 由构造参数决定：传 `"fire_resistance"` 则 `<name> = fire_resistance`；传 `null` 则 `<name> = 注册路径`。
 
-## 四、高炉 / 烟熏 / 营火
+### 四种键都要存在
+
+**传 `baseName` 复用原版键**时，原版已写好的四种键直接生效，**零语言文件**。
+
+**原版没有的药水**（如 `wither` / `levitation`），四种键原版全缺，**四条都要补**：
 
 ```json
-{ "type": "minecraft:blasting", ... }
-{ "type": "minecraft:smoking", ... }
-{ "type": "minecraft:campfire_cooking", ... }
+"item.minecraft.potion.effect.wither": "凋零药水",
+"item.minecraft.splash_potion.effect.wither": "喷溅型凋零药水",
+"item.minecraft.lingering_potion.effect.wither": "滞留型凋零药水",
+"item.minecraft.tipped_arrow.effect.wither": "凋零之箭"
 ```
 
-**结构完全一样**，只换 `type` 和 `cookingtime`：
+少写哪种形态，那种形态就显示原始 key。
 
-| 类型 | 默认 cookingtime |
+### 多种变体共用一条翻译
+
+多个 `Potion` 传**同一个 `baseName`** → 共用翻译键。原版 `LONG_POISON` / `STRONG_POISON` 都传 `"poison"`，显示都为"剧毒药水"，靠颜色和时长区分。
+
+自己的变体链（如 `wither` / `long_wither` / `strong_wither`）也全传 `"wither"`，**只写 4 条翻译**。
+
+## 三、酿造配方
+
+`RegisterBrewingRecipesEvent`，1.21.1 不支持 `minecraft:brewing` 数据包。
+
+```java
+@SubscribeEvent
+public static void onRegisterBrewingRecipes(RegisterBrewingRecipesEvent event) {
+    event.getBuilder().addMix(
+            Potions.LONG_FIRE_RESISTANCE,          // 输入
+            ItemRegister.ALLIUM_HONEY.get(),       // 试剂
+            PotionRegister.SUPER_LONG_FIRE_RESISTANCE  // 输出
+    );
+}
+```
+
+`Builder` 三个方法：
+
+| 方法 | 用途 |
 |---|---|
-| `smelting` | 200 |
-| `blasting` | 100 |
-| `smoking` | 100 |
-| `campfire_cooking` | 600 |
+| `addMix(Holder<Potion> in, Item reagent, Holder<Potion> out)` | 药水 + 物品 → 药水 |
+| `addStartMix(Item reagent, Holder<Potion> out)` | 水 → 平凡 → 药水 |
+| `addRecipe(Ingredient, Ingredient, ItemStack)` | 自定义逻辑 |
 
-**高炉只吃矿石类**，烟熏只吃食物，用其他物品会**配方找不到**——不是报错，是运行时静默不匹配。
+`addMix` 自动处理水/喷溅/滞留三容器，不用构造 `ItemStack`，不用碰 `PotionContents`。
 
-## 五、切石机 Stonecutting
+### 每种输出只能被一种材料得到
 
-```json
-{
-  "type": "minecraft:stonecutting",
-  "ingredient": { "item": "minecraft:stone" },
-  "result": { "id": "minecraft:stone_slab", "count": 2 }
-}
+多个 `addMix` 指向**同一输出**时，**只有第一条生效**——后注册的覆盖不了，也加不进。所以一种输出只对应一种花。
+
+要多种花出同一药水，得注册**多个输出**（不同 `DeferredHolder`），再分别 `addMix`。
+
+### 原版没有的前置药水
+
+原版没有的药水（如凋零、漂浮），需要**两步链**：
+
+```java
+// 前置：粗制 + 材料
+b.addMix(Potions.AWKWARD, Items.WITHER_ROSE, WITHER);
+// 原版两条路径
+b.addMix(WITHER, Items.REDSTONE, LONG_WITHER);
+b.addMix(WITHER, Items.GLOWSTONE_DUST, STRONG_WITHER);
+// 蜂蜜强化两条
+b.addMix(LONG_WITHER,   ItemRegister.WITHER_ROSE_HONEY.get(), SUPER_LONG_WITHER);
+b.addMix(STRONG_WITHER, ItemRegister.WITHER_ROSE_HONEY.get(), SUPER_STRONG_WITHER);
 ```
 
-**注意 `count` 写在外层**，不是嵌在 `result` 里再套一层。这是 1.21 的正确格式。
+## 四、清单
 
-## 六、锻造升级 Smithing
-
-1.20 之后的"下界合金式升级"：
-
-```json
-{
-  "type": "minecraft:smithing_transform",
-  "template": { "item": "minecraft:netherite_upgrade_smithing_template" },
-  "base": { "item": "minecraft:diamond_sword" },
-  "addition": { "item": "minecraft:netherite_ingot" },
-  "result": { "id": "minecraft:netherite_sword" }
-}
-```
-
-**四个字段缺一不可**。`template` 是锻造模板，1.20 之前没有。
-
-## 七、盔甲纹饰 Smithing Trim
-
-```json
-{
-  "type": "minecraft:smithing_trim",
-  "template": { "item": "minecraft:wayfinder_armor_trim_smithing_template" },
-  "base": { "tag": "minecraft:trimmable_armor" },
-  "addition": { "tag": "minecraft:trim_materials" }
-}
-```
-
-**没有 `result`**——纹饰不产生新物品，只是给原装备加图案。
-
-## 八、常用 ingredient 写法
-
-| 想匹配 | 写法 |
+| 文件 | 改动 |
 |---|---|
-| 具体物品 | `{ "item": "thrive:lantern_berry" }` |
-| 物品标签 | `{ "tag": "minecraft:planks" }` |
-| 多个物品任选 | 只能靠标签，`item` 字段只接一个 id |
+| `register/PotionRegister.java` | 注册 + `addMix` |
+| `register/ItemRegister.java` | 对应蜂蜜物品 |
+| `ThriveMod.java` | `PotionRegister.register(bus)` |
+| `lang/{en_us,zh_cn}.json` | 仅原版无对应键时写 |
 
-**物品标签**要在 `data/<ns>/tags/item/<name>.json` 里定义：
-
-```json
-{
-  "replace": false,
-  "values": [
-    "thrive:lantern_berry",
-    "minecraft:sweet_berries"
-  ]
-}
-```
-
-## 九、配方解锁（可选）
-
-**不加这一段，配方在配方书里默认可见、可合成**。加 `recipe_advancement` 才需要玩家"发现"——大多数情况不需要。
-
-**需要时**，在 `data/thrive/advancement/recipe/<name>.json` 里写解锁条件。**跳过。**
-
-## 十、常见坑
+## 五、常见坑
 
 | 坑 | 症状 |
 |---|---|
-| `pattern` 不满 3 行 | 加载时报错，配方不注册 |
-| `pattern` 行内字符数超过 3 | 报错 |
-| `key` 用了数字或符号 | 报错，只能用字母 |
-| `ingredients` 里写 `{ "item": "...", "count": 3 }` | 1.21 无效，要写 3 遍 |
-| `result` 写 `{ "item": "..." }` | 报错，1.21 起是 `{ "id": "..." }` |
-| 高炉配方放食物 | 静默不匹配，不报错 |
-| 路径写成 `recipes/` | 报错，1.21 是 `recipe/`（单数） |
-| 文件名与 `result` id 不一致 | 无所谓，文件名只是 id |
-
-## 十一、清单
-
-| 类型 | 路径 |
-|---|---|
-| 所有配方 | `data/thrive/recipe/<name>.json` |
-| 物品标签（可选） | `data/thrive/tags/item/<name>.json` |
-| 语言（成品名） | `assets/thrive/lang/{en_us,zh_cn}.json` |
-
-**成品物品名在语言文件里，配方 JSON 不写名字。**
-
-## 十二、验证
-
-进世界后：
-
-```
-/recipe give @s thrive:<name>
-```
-
-能拿到成品 = 配方生效。或直接打开配方书看有没有这一条。
+| 键名带 `thrive.` | 显示原始 key |
+| 原版无的药水只写 1 条 | 喷溅/滞留/箭显示原始 key |
+| 数据包写 `minecraft:brewing` | `Unknown registry key ... recipe_serializer` |
+| `addMix` 传 `ItemStack` | 编译错，需 `Holder<Potion>` |
+| 多个 `addMix` 指同一输出 | 只有第一条生效 |
+| 忘 `register(bus)` | `Registry is already frozen` |

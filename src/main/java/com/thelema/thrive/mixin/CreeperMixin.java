@@ -10,7 +10,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Creeper.class)
 public abstract class CreeperMixin {
 
-    /** 父类膨胀到 maxSwell 时会调 explodeCreeper()。若是我们的苦力怕，走爆燃。 */
+    /**
+     * 苦力怕的 explodeCreeper，是私有方法，子类无法重写。
+     * 所以，就让其执行，但是我直接用Mixin加了一个类型条件，满足则走我们自己的爆燃效果。 */
     @Inject(method = "explodeCreeper", at = @At("HEAD"), cancellable = true)
     private void thrive$deflagrateLanternBerry(CallbackInfo ci) {
         if ((Object) this instanceof LanternBerryCreeper creeper) {

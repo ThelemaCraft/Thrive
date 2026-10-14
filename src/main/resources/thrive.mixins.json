@@ -8,7 +8,9 @@
   "mixins": [
     "PlayerMixin",
     "JigsawPlacementMixin",
-    "CreeperMixin"
+    "CreeperMixin",
+    "HealOrHarmMobEffectMixin",
+    "AbstractArrowMixin"
   ],
   "client": [
 

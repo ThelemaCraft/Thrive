@@ -17,14 +17,47 @@
   "item.thrive.lantern_berry_juice_bucket": "灯笼果汁桶",
   "item.thrive.biome_twig": "群系新枝",
   "item.thrive.garden_bee_spawn_egg": "花园蜜蜂刷怪蛋",
-  "item.thrive.garden_honey": "花园蜂蜜",
+  "item.thrive.dandelion_honey": "蒲公英蜂蜜",
+  "item.thrive.poppy_honey": "虞美人蜂蜜",
+  "item.thrive.blue_orchid_honey": "兰花蜂蜜",
+  "item.thrive.allium_honey": "绒球葱蜂蜜",
+  "item.thrive.azure_bluet_honey": "雏菊蜂蜜",
+  "item.thrive.red_tulip_honey": "红色郁金香蜂蜜",
+  "item.thrive.orange_tulip_honey": "橙色郁金香蜂蜜",
+  "item.thrive.white_tulip_honey": "白色郁金香蜂蜜",
+  "item.thrive.pink_tulip_honey": "粉红色郁金香蜂蜜",
+  "item.thrive.oxeye_daisy_honey": "滨菊蜂蜜",
+  "item.thrive.cornflower_honey": "矢车菊蜂蜜",
+  "item.thrive.lily_of_the_valley_honey": "铃兰蜂蜜",
+  "item.thrive.wither_rose_honey": "凋灵玫瑰蜂蜜",
+  "item.thrive.torchflower_honey": "火炬花蜂蜜",
+  "item.thrive.sunflower_honey": "向日葵蜂蜜",
+  "item.thrive.lilac_honey": "丁香蜂蜜",
+  "item.thrive.peony_honey": "牡丹蜂蜜",
+  "item.thrive.rose_bush_honey": "玫瑰丛蜂蜜",
+  "item.thrive.pitcher_plant_honey": "瓶子草蜂蜜",
+  "item.thrive.flowering_azalea_leaves_honey": "盛开的杜鹃树叶蜂蜜",
+  "item.thrive.flowering_azalea_honey": "盛开的杜鹃花丛蜂蜜",
+  "item.thrive.mangrove_propagule_honey": "红树胎生苗蜂蜜",
+  "item.thrive.cherry_leaves_honey": "樱花树叶蜂蜜",
+  "item.thrive.pink_petals_honey": "粉红色花簇蜂蜜",
+  "item.thrive.chorus_flower_honey": "紫颂花蜂蜜",
+  "item.thrive.spore_blossom_honey": "孢子花蜂蜜",
 
+  "item.minecraft.potion.effect.wither": "凋零药水",
+  "item.minecraft.splash_potion.effect.wither": "喷溅型凋零药水",
+  "item.minecraft.lingering_potion.effect.wither": "滞留型凋零药水",
+  "item.minecraft.tipped_arrow.effect.wither": "凋零之箭",
+
+  "item.minecraft.potion.effect.levitation": "漂浮药水",
+  "item.minecraft.splash_potion.effect.levitation": "喷溅型漂浮药水",
+  "item.minecraft.lingering_potion.effect.levitation": "滞留型漂浮药水",
+  "item.minecraft.tipped_arrow.effect.levitation": "漂浮之箭",
 
   "effect.thrive.lantern_berry_juice": "灯笼果汁",
   "effect.thrive.super_hunger": "超级饥饿",
   "effect.thrive.appetite": "食欲",
   "effect.thrive.blinding": "炫目",
-
 
   "biome.thrive.moss_land": "苔藓地",
   "biome.thrive.flower_sea": "花海",
@@ -37,6 +70,19 @@
   "subtitles.thrive.sun_berry_deflagrate": "太阳浆果爆燃",
 
   "death.attack.sun": "%1$s 被太阳焚化了",
-  "death.attack.sun.player": "%1$s 被 %2$s 用太阳焚化了"
+  "death.attack.sun.player": "%1$s 被 %2$s 用太阳焚化了",
+
+
+  "config.jade.plugin_thrive.garden_bee": "花园蜜蜂",
+  "jade.thrive.garden_bee.favorite": "偏好：%s",
+  "jade.thrive.garden_bee.home": "蜂巢：%d, %d, %d",
+  "jade.thrive.garden_bee.pollen": "花粉：%s",
+  "config.jade.plugin_thrive.garden_hive": "花园蜂巢",
+  "jade.thrive.garden_hive.bees": "蜜蜂：%d/%d",
+  "jade.thrive.garden_hive.nectar": "花粉：",
+  "jade.thrive.garden_hive.honey": "蜂蜜：",
+  "jade.thrive.garden_hive.progress": "酿蜜中：%d%%",
+
+  "jei.thrive.garden_hive": "酿蜜"
 
 }

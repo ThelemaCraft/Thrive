@@ -1,6 +1,6 @@
 package com.thelema.thrive.generic.entity;
 
-import com.thelema.thelemalib.damage.Damage;
+import com.thelema.thrive.generic.tool.Damage;
 import com.thelema.thrive.register.EffectRegister;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -36,7 +36,7 @@ public class Sun extends Entity {
     private static final int LIFETIME = 400;
     /** 伤害间隔：每 4 tick 一次 */
     private static final int DAMAGE_INTERVAL = 4;
-    /** 每次伤害 2 点（原 4 点，时长翻倍所以减半） */
+    /** 每次伤害 2 点 */
     private static final float DAMAGE_AMOUNT = 2.0f;
     /** 每次附加燃烧：100 tick = 5 秒 */
     private static final int FIRE_TICKS_PER_HIT = 100;

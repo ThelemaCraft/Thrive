@@ -91,25 +91,39 @@ dependencies {
 
     // 请将对应的 jar 文件放入项目根目录的 libs/ 文件夹中
 
-    implementation files('libs/thelemalib-1.0.0.jar')
-
+    // Geckolib
     implementation files('libs/geckolib-neoforge-1.21.1-4.9.2.jar')
+
+    // Jade
+    compileOnly files('libs/Jade-1.21.1-NeoForge-15.10.6.jar')
+    localRuntime files("libs/Jade-1.21.1-NeoForge-15.10.6.jar")
+
+
+    // JEI + MezzConfig
+    compileOnly files("libs/[JEI物品管理器] jei-1.21.1-neoforge-19.21.2.313.jar")
+    localRuntime files("libs/[JEI物品管理器] jei-1.21.1-neoforge-19.21.2.313.jar")
+    compileOnly files("libs/mezz_config-1.21.1-neoforge-0.6.8-standalone.jar")
+    localRuntime files("libs/mezz_config-1.21.1-neoforge-0.6.8-standalone.jar")
+
+    // 其它辅助模组（仅进游戏，不编译引用）
+    localRuntime files("libs/playernbt-1.0.0.jar")
+    localRuntime files("libs/componentviewer-neoforge-1.3.3+1.21.1.jar")
 
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
     var replaceProperties = [
-            minecraft_version       : minecraft_version,
-            minecraft_version_range : minecraft_version_range,
-            neo_version             : neo_version,
-            neo_version_range       : neo_version_range,
-            loader_version_range    : loader_version_range,
-            mod_id                  : mod_id,
-            mod_name                : mod_name,
-            mod_license             : mod_license,
-            mod_version             : mod_version,
-            mod_authors             : mod_authors,
-            mod_description         : mod_description
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description
     ]
     inputs.properties replaceProperties
     expand replaceProperties

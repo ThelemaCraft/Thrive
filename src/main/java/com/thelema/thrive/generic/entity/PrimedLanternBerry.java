@@ -1,10 +1,8 @@
 package com.thelema.thrive.generic.entity;
 
-import com.thelema.thelemalib.damage.Damage;
-import com.thelema.thelemalib.damage.DamageQueue;
-import com.thelema.thelemalib.entity.Knockback;
 import com.thelema.thrive.generic.block.LanternBerry;
-import com.thelema.thrive.register.EffectRegister;
+import com.thelema.thrive.generic.tool.Damage;
+import com.thelema.thrive.generic.tool.Knockback;
 import com.thelema.thrive.register.EntityRegister;
 import com.thelema.thrive.register.ParticleRegister;
 import net.minecraft.core.BlockPos;
@@ -19,7 +17,6 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 

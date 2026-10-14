@@ -1,1 +1,3 @@
-{ "parent": "minecraft:block/beehive" }
+{
+  "parent": "minecraft:block/bee_nest"
+}

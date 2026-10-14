@@ -27,8 +27,8 @@ public class GardenBeeRenderer extends MobRenderer<GardenBee, GardenBeeModel<Gar
     @Override
     public ResourceLocation getTextureLocation(GardenBee bee) {
         if (bee.isAngry()) {
-            return bee.carriedPollen != null ? ANGRY_NECTAR_BEE_TEXTURE : ANGRY_BEE_TEXTURE;
+            return bee.hasPollen() ? ANGRY_NECTAR_BEE_TEXTURE : ANGRY_BEE_TEXTURE;
         }
-        return bee.carriedPollen != null ? NECTAR_BEE_TEXTURE : BEE_TEXTURE;
+        return bee.hasPollen() ? NECTAR_BEE_TEXTURE : BEE_TEXTURE;
     }
 }

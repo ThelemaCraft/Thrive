@@ -36,6 +36,7 @@ public class ThriveMod {
         PotionRegister.register(bus);
         SoundRegister.register(bus);
         ParticleRegister.register(bus);
+        PoiRegister.register(bus);
         RecipeRegister.register();
 
 
