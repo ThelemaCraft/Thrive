@@ -1,7 +1,7 @@
 package com.thelema.thrive.generic.blockentity.convertor;
 
 import com.thelema.thrive.generic.blockentity.BiomeCoreBlockEntity;
-import com.thelema.thrive.generic.world.feature.Lake;
+import com.thelema.thrive.generic.feature.Lake;
 import com.thelema.thrive.register.BlockRegister;
 import com.thelema.thrive.register.FluidRegister;
 import net.minecraft.core.BlockPos;

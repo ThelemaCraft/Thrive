@@ -1,4 +1,4 @@
-package com.thelema.thrive.client.event;
+package com.thelema.thrive.client.sound;
 
 import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.client.sound.GardenBeeSoundInstance;
@@ -21,9 +21,9 @@ public class ClientSoundEvents {
             Minecraft.getInstance().getSoundManager()
                     .play(new GardenBeeSoundInstance(bee, false, null));
         } else if (event.getEntity() instanceof GardenSoldierBee bee) {
-            // 士兵蜂会随愤怒状态在普通 / aggressive 循环之间切换
+
             Minecraft.getInstance().getSoundManager()
-                    .play(new GardenBeeSoundInstance(bee, bee.isAngry(), bee::isAngry));
+                    .play(new GardenBeeSoundInstance(bee, bee.getTarget() != null, () -> bee.getTarget() != null));
         }
     }
 }

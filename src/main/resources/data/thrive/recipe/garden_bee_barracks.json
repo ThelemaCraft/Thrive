@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "PPP",
+    "SFS",
+    "PPP"
+  ],
+  "key": {
+    "P": {
+      "tag": "minecraft:planks"
+    },
+    "S": {
+      "item": "minecraft:honeycomb"
+    },
+    "F": {
+      "tag": "minecraft:flowers"
+    }
+  },
+  "result": {
+    "id": "thrive:garden_bee_barracks",
+    "count": 1
+  }
+}

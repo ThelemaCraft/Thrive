@@ -6,7 +6,6 @@ import com.thelema.thrive.mixin.WitchAccessor;
 import com.thelema.thrive.register.PotionRegister;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.FluidTags;
@@ -35,9 +34,12 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.Optional;
 
+
 public class GardenWitch extends Witch {
 
-    /** 女巫掉落池：包含所有能被玩家的蜂蜜升级的原版高级药水 */
+    /**
+     * 女巫掉落池：包含所有能被玩家的蜂蜜升级的原版高级药水
+     */
     private static final List<Holder<Potion>> DROP_POOL = List.of(
             // 增益类
             Potions.LONG_NIGHT_VISION, Potions.LONG_INVISIBILITY,
@@ -57,7 +59,6 @@ public class GardenWitch extends Witch {
             Potions.STRONG_HEALING, Potions.STRONG_HARMING,
             Potions.LONG_WEAKNESS,
 
-            // 1.21 新增（无 long/strong 版，直接掉落普通版供升级）
             Potions.WEAVING, Potions.OOZING, Potions.INFESTED, Potions.WIND_CHARGED
     );
 
@@ -76,7 +77,7 @@ public class GardenWitch extends Witch {
         super.registerGoals();                                                // 原版基础行为 + 目标选择
         this.goalSelector.removeAllGoals(g -> g instanceof RangedAttackGoal); // 远程行为换成新战斗 AI
         this.goalSelector.addGoal(-1, new KitingGoal(this));                  // 风筝：唯一控制 MOVE/LOOK
-        this.targetSelector.addGoal(0, new NearestThreatTargetGoal(this));    // 先手锁定最近的攻击者
+        this.targetSelector.addGoal(0, new NearestThreatTargetGoal(this, e -> true));    // 先手锁定最近的攻击者
     }
 
     // ==================== 喝增益药 ====================
@@ -221,4 +222,5 @@ public class GardenWitch extends Witch {
         // 3. 掉落
         this.spawnAtLocation(stack);
     }
+
 }

@@ -36,6 +36,7 @@ public class PotionRegister {
     public static final DeferredHolder<Potion, Potion> SUPER_STRONG_STRENGTH =
             strongP("super_strong_strength", "strength", MobEffects.DAMAGE_BOOST, 1800, 1);
 
+
     // ============ 抗火 ============
     public static final DeferredHolder<Potion, Potion> SUPER_LONG_FIRE_RESISTANCE =
             longP("super_long_fire_resistance", "fire_resistance", MobEffects.FIRE_RESISTANCE, 9600);
@@ -198,9 +199,9 @@ public class PotionRegister {
         // 10 滨菊 → 虚弱
         b.addMix(Potions.LONG_WEAKNESS, ItemRegister.OXEYE_DAISY_HONEY.get(), SUPER_LONG_WEAKNESS);
 
-        // 11 矢车菊 → 剧毒
-        b.addMix(Potions.LONG_POISON, ItemRegister.CORNFLOWER_HONEY.get(), SUPER_LONG_POISON);
-        b.addMix(Potions.STRONG_POISON, ItemRegister.CORNFLOWER_HONEY.get(), SUPER_STRONG_POISON);
+        // 11 矢车菊
+        //b.addMix(Potions.LONG_POISON, ItemRegister.CORNFLOWER_HONEY.get(), SUPER_LONG_POISON);
+        //b.addMix(Potions.STRONG_POISON, ItemRegister.CORNFLOWER_HONEY.get(), SUPER_STRONG_POISON);
 
         // 12 铃兰 → 剧毒
         b.addMix(Potions.LONG_POISON, ItemRegister.LILY_OF_THE_VALLEY_HONEY.get(), SUPER_LONG_POISON);
@@ -214,6 +215,7 @@ public class PotionRegister {
         b.addMix(STRONG_WITHER, ItemRegister.WITHER_ROSE_HONEY.get(), SUPER_STRONG_WITHER);
 
         // 14 火把花 —— 空
+
         // 15 向日葵 —— 空
 
         // 16 丁香 → 蓄风

@@ -20,9 +20,19 @@
     "water_color": 4159204,
     "water_fog_color": 329011
   },
-  "carvers": { "air": [] },
+  "carvers": {
+    "air": []
+  },
   "features": [
-    [], [], [], [], [], [], [], [], [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
     [
       "minecraft:flower_default",
       "minecraft:flower_flower_forest"
@@ -32,9 +42,7 @@
   "spawners": {
     "ambient": [],
     "axolotls": [],
-    "creature": [
-      { "type": "thrive:garden_soldier_bee", "maxCount": 1, "minCount": 1, "weight": 2 }
-    ],
+    "creature": [],
     "misc": [],
     "monster": [],
     "underground_water_creature": [],

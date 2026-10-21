@@ -9,6 +9,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.food.Foods;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.HoneyBottleItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.neoforged.bus.api.IEventBus;
@@ -31,7 +32,7 @@ public class ItemRegister {
 
     /** 蜂蜜：食物属性与原版蜂蜜瓶完全一致。 */
     private static DeferredHolder<Item, Item> honeyItem(String name) {
-        return ITEM.register(name, () -> new Item(new Item.Properties().food(Foods.HONEY_BOTTLE)));
+        return ITEM.register(name, () -> new HoneyBottleItem(new Item.Properties().craftRemainder(Items.GLASS_BOTTLE).food(Foods.HONEY_BOTTLE).stacksTo(16)));
     }
 
     public static final DeferredHolder<Item, Item> FRESH_GRASS;
@@ -43,6 +44,7 @@ public class ItemRegister {
     public static final DeferredHolder<Item, Item> GARDEN_BEE_SPAWN_EGG;
     public static final DeferredHolder<Item, Item> GARDEN_SOLDIER_BEE_SPAWN_EGG;
     public static final DeferredHolder<Item, Item> GARDEN_PILLAGER_SPAWN_EGG;
+    public static final DeferredHolder<Item, Item> GARDEN_WITCH_SPAWN_EGG;
 
     // 每种原版花对应的蜂蜜
     public static final DeferredHolder<Item, Item> DANDELION_HONEY;
@@ -115,6 +117,13 @@ public class ItemRegister {
                         EntityRegister.GARDEN_PILLAGER,
                         0x5B6B47,   // 底色，暗绿
                         0xC3D96A,   // 高光色，嫩绿
+                        new Item.Properties()));
+
+        GARDEN_WITCH_SPAWN_EGG = ITEM.register("garden_witch_spawn_egg",
+                () -> new DeferredSpawnEggItem(
+                        EntityRegister.GARDEN_WITCH,
+                        0x3F2A56,   // 底色，深紫
+                        0x86C06C,   // 高光色，叶绿
                         new Item.Properties()));
 
         // 花朵蜂蜜

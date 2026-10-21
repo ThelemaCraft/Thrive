@@ -53,7 +53,7 @@ public class GardenBeeBarracksBlockEntity extends BlockEntity {
 
         if (be.cooldownTicks > 0) be.cooldownTicks--;
 
-        // 1. 被动回血：每 20 tick (1秒)，内部蜜蜂回 2 点血
+        // 1. 被动回血：每 20 tick (1秒)，内部所有受伤的蜜蜂恢复 2 点血
         if (!be.storedBees.isEmpty() && level.getGameTime() % 20 == 0) {
             boolean changed = false;
             for (CompoundTag beeTag : be.storedBees) {
@@ -66,16 +66,27 @@ public class GardenBeeBarracksBlockEntity extends BlockEntity {
             if (changed) be.setChanged();
         }
 
-        // 2. 自动巡逻逻辑（白天/晚上均巡逻，条件：内部有蜜蜂且无冷却）
-        if (be.cooldownTicks <= 0 && !be.storedBees.isEmpty()) {
-            be.patrolTimer--;
-            if (be.patrolTimer <= 0) {
-                be.patrolTimer = 6000; // 重置 5 分钟
-                // 释放最多 2 只蜜蜂去巡逻
-                for (int i = 0; i < 2; i++) {
-                    if (!be.storedBees.isEmpty()) {
-                        be.spawnBeeFromNBT(level, pos, be.storedBees.remove(0), false);
-                    }
+        // 2. 常驻巡逻机制：非雨天，每隔 20 tick 检查外界是否有存活的巡逻蜂
+        if (!level.isRaining() && be.cooldownTicks <= 0 && !be.storedBees.isEmpty() && level.getGameTime() % 20 == 0) {
+            boolean hasPatroller = false;
+            // 搜索周围 64 格内是否存在这只兵营的巡逻蜂
+            List<GardenSoldierBee> outsideBees = level.getEntitiesOfClass(GardenSoldierBee.class,
+                    new net.minecraft.world.phys.AABB(pos).inflate(64.0));
+
+            for (GardenSoldierBee b : outsideBees) {
+                if (b.isAlive() && b.isPatroller && b.barracksPos != null && b.barracksPos.equals(pos)) {
+                    hasPatroller = true;
+                    break;
+                }
+            }
+
+            // 如果没有巡逻蜂，放出一只并强行指派
+            if (!hasPatroller) {
+                CompoundTag tag = be.storedBees.remove(0);
+                GardenSoldierBee bee = be.spawnBeeFromNBT(level, pos, tag, false);
+                if (bee != null) {
+                    bee.isPatroller = true;
+                    bee.barracksPos = pos;
                 }
                 level.playSound(null, pos, SoundEvents.BEEHIVE_EXIT, SoundSource.BLOCKS, 1.0F, 1.0F);
                 be.setChanged();
@@ -109,7 +120,7 @@ public class GardenBeeBarracksBlockEntity extends BlockEntity {
             }
         } else {
             // 已有主兵营，只接受同阵营的蜜蜂
-            if (beeOwner == null || !this.ownerUUID.equals(beeOwner)) return false;
+            if (!this.ownerUUID.equals(beeOwner)) return false;
         }
 
         // 保存实体完整 NBT
@@ -129,33 +140,11 @@ public class GardenBeeBarracksBlockEntity extends BlockEntity {
     private void assimilateWildBees(UUID newOwner) {
         for (CompoundTag tag : storedBees) {
             tag.putUUID("Owner", newOwner);
+            tag.putBoolean("Tame", true); // 强制变为驯服状态
         }
     }
 
     // ==================== 释放与报信逻辑 ====================
-
-    /** 释放一只内部蜜蜂 */
-    public void releaseOneBee(Level level, BlockPos pos) {
-        if (!storedBees.isEmpty()) {
-            spawnBeeFromNBT(level, pos, storedBees.remove(0), false);
-            level.playSound(null, pos, SoundEvents.BEEHIVE_EXIT, SoundSource.BLOCKS, 1.0F, 1.0F);
-            setChanged();
-            level.sendBlockUpdated(pos, getBlockState(), getBlockState(), 3);
-        }
-    }
-
-    /** 强制释放全部，并进入 5 秒冷却 */
-    public void releaseAllBees(Level level, BlockPos pos) {
-        if (!storedBees.isEmpty()) {
-            while (!storedBees.isEmpty()) {
-                spawnBeeFromNBT(level, pos, storedBees.remove(0), false);
-            }
-            level.playSound(null, pos, SoundEvents.BEEHIVE_EXIT, SoundSource.BLOCKS, 1.0F, 1.0F);
-        }
-        this.cooldownTicks = 100; // 5 秒冷却
-        setChanged();
-        level.sendBlockUpdated(pos, getBlockState(), getBlockState(), 3);
-    }
 
     /** 收到通风报信：释放全部，并让所有蜜蜂进入暴怒战斗状态 */
     public void triggerAlarm(Level level, BlockPos pos, @Nullable LivingEntity target) {
@@ -164,8 +153,8 @@ public class GardenBeeBarracksBlockEntity extends BlockEntity {
         while (!storedBees.isEmpty()) {
             GardenSoldierBee bee = spawnBeeFromNBT(level, pos, storedBees.remove(0), false);
             if (bee != null && target != null && target.isAlive()) {
-                bee.setTarget(target); // 锁定报信的敌人
-                bee.setRemainingPersistentAngerTime(400); // 激怒
+                bee.setTarget(target);
+                // 删掉 bee.setRemainingPersistentAngerTime(400);
             }
         }
         level.playSound(null, pos, SoundEvents.BEEHIVE_EXIT, SoundSource.BLOCKS, 1.5F, 0.8F);
@@ -180,7 +169,7 @@ public class GardenBeeBarracksBlockEntity extends BlockEntity {
             GardenSoldierBee bee = spawnBeeFromNBT(level, pos, storedBees.remove(0), true);
             if (bee != null && breaker != null && bee.canAttackType(breaker.getType()) && !bee.isOwnedBy(breaker)) {
                 bee.setTarget(breaker);
-                bee.setRemainingPersistentAngerTime(400);
+                // 删掉 bee.setRemainingPersistentAngerTime(400);
             }
         }
         level.playSound(null, pos, SoundEvents.BEEHIVE_EXIT, SoundSource.BLOCKS, 1.0F, 1.0F);

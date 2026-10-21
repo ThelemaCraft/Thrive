@@ -1,6 +1,5 @@
 package com.thelema.thrive.generic.entity;
 
-import com.thelema.thrive.generic.entity.goal.PickupJuiceGoal;
 import com.thelema.thrive.register.EffectRegister;
 import com.thelema.thrive.register.FluidRegister;
 import net.minecraft.core.BlockPos;
@@ -13,6 +12,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.Goal;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.item.Item;
@@ -25,6 +25,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.living.LivingExperienceDropEvent;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 
 public class MossyZombie extends Zombie {
@@ -49,9 +50,6 @@ public class MossyZombie extends Zombie {
             EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET
     };
 
-    /**
-     * [档次][部位]：皮革、铁、锁链、钻石、下界合金。
-     */
     private static final Item[][] ARMOR = {
             {Items.LEATHER_HELMET, Items.LEATHER_CHESTPLATE, Items.LEATHER_LEGGINGS, Items.LEATHER_BOOTS},
             {Items.IRON_HELMET, Items.IRON_CHESTPLATE, Items.IRON_LEGGINGS, Items.IRON_BOOTS},
@@ -66,14 +64,10 @@ public class MossyZombie extends Zombie {
 
     // ==================== 字段 ====================
 
-    /**
-     * 放出浆果汁后的冷却。> 0 时不许装桶。
-     */
+    /** 放出浆果汁后的冷却。> 0 时不许装桶。 */
     public int juiceCooldown;
 
-    /**
-     * 最近一次放出源头的位置。找回时优先查这里。
-     */
+    /** 最近一次放出源头的位置。找回时优先查这里。 */
     public BlockPos lastJuicePos;
 
     // ==================== 构造与属性 ====================
@@ -85,7 +79,7 @@ public class MossyZombie extends Zombie {
     @Override
     protected void registerGoals() {
         super.registerGoals();
-        goalSelector.addGoal(3, new PickupJuiceGoal(this));
+        goalSelector.addGoal(3, new PickupJuiceGoal());
     }
 
     public static AttributeSupplier.Builder createAttributes() {
@@ -176,9 +170,6 @@ public class MossyZombie extends Zombie {
         }
     }
 
-    /**
-     * 护甲池：皮革/铁/锁链各 10，钻石 2，下界合金 1（总 33）。
-     */
     private static Item pickArmor(RandomSource random, int slotIdx) {
         int roll = random.nextInt(33);
         int tier = roll < 10 ? 0 : roll < 20 ? 1 : roll < 30 ? 2 : roll < 32 ? 3 : 4;
@@ -203,9 +194,6 @@ public class MossyZombie extends Zombie {
         return tierXp(getMainHandItem());
     }
 
-    /**
-     * 装备档位经验：皮革 1、铁 2、锁链 3、钻石 4、下界合金 5。
-     */
     private static int tierXp(ItemStack s) {
         if (s.isEmpty()) return 0;
         Item i = s.getItem();
@@ -271,6 +259,84 @@ public class MossyZombie extends Zombie {
     public static void onXpDrop(LivingExperienceDropEvent event) {
         if (event.getEntity() instanceof MossyZombie zombie) {
             event.setDroppedExperience(zombie.computeXp());
+        }
+    }
+
+    // ==================== 内置 Goal ====================
+
+    /**
+     * 空桶苔藓僵尸的寻源 Goal。
+     * 附近有浆果汁源头时，寻路过去装桶。
+     */
+    class PickupJuiceGoal extends Goal {
+
+        private static final int SEARCH_H = 16;
+        private static final int SEARCH_V = 4;
+        private static final double ARRIVE_DIST = 2.0;
+
+        private BlockPos target;
+
+        public PickupJuiceGoal() {
+            this.setFlags(EnumSet.of(Flag.MOVE));
+        }
+
+        @Override
+        public boolean canUse() {
+            if (!getOffhandItem().is(Items.BUCKET)) return false;
+            if (juiceCooldown > 0) return false;
+            target = findJuice();
+            return target != null;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return target != null
+                    && getOffhandItem().is(Items.BUCKET)
+                    && blockPosition().closerThan(target, SEARCH_H);
+        }
+
+        @Override
+        public void start() {
+            moveToTarget();
+        }
+
+        @Override
+        public void tick() {
+            if (target == null) return;
+
+            if (blockPosition().closerThan(target, ARRIVE_DIST)) {
+                pickupJuiceAt(target);
+                target = null;
+                return;
+            }
+
+            // 每 20 tick 重寻路，避免卡住
+            if (tickCount % 20 == 0) {
+                moveToTarget();
+            }
+        }
+
+        @Override
+        public void stop() {
+            target = null;
+            getNavigation().stop();
+        }
+
+        private void moveToTarget() {
+            getNavigation().moveTo(target.getX() + 0.5, target.getY(), target.getZ() + 0.5, 1.0);
+        }
+
+        private BlockPos findJuice() {
+            BlockPos origin = blockPosition();
+            for (BlockPos p : BlockPos.betweenClosed(
+                    origin.offset(-SEARCH_H, -SEARCH_V, -SEARCH_H),
+                    origin.offset(SEARCH_H, SEARCH_V, SEARCH_H))) {
+                FluidState fs = level().getFluidState(p);
+                if (fs.getType() == FluidRegister.LANTERN_BERRY_JUICE_STILL.get() && fs.isSource()) {
+                    return p.immutable();
+                }
+            }
+            return null;
         }
     }
 }

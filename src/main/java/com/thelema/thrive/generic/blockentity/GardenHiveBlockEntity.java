@@ -209,20 +209,45 @@ public class GardenHiveBlockEntity extends BlockEntity {
 
     private record Flower(double dist, Item item) {}
 
-    public boolean takeHoney(Player player, ItemStack held) {
-        if (!held.is(Items.GLASS_BOTTLE)) return false;
+    public boolean take(Player player, ItemStack held) {
+        // 1. 玻璃瓶取蜜
+        if (held.is(Items.GLASS_BOTTLE)) {
+            for (int i = 0; i < MAX_HONEY; i++) {
+                if (honey[i] != null) {
+                    ItemStack result = new ItemStack(honey[i]);
+                    honey[i] = null;
 
-        for (int i = 0; i < MAX_HONEY; i++) {
-            if (honey[i] != null) {
-                ItemStack result = new ItemStack(honey[i]);
-                honey[i] = null;
+                    if (!player.getAbilities().instabuild) held.shrink(1);
+                    if (!player.getInventory().add(result)) player.drop(result, false);
 
-                if (!player.getAbilities().instabuild) held.shrink(1);
-                if (!player.getInventory().add(result)) player.drop(result, false);
+                    player.level().playSound(null, worldPosition, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0F, 1.0F);
+                    setChanged();
+                    return true;
+                }
+            }
+        }
+        // 2. 剪刀剪蜜脾
+        else if (held.is(Items.SHEARS)) {
+            for (int i = 0; i < MAX_HONEY; i++) {
+                if (honey[i] != null) {
+                    // 消耗一份蜂蜜
+                    honey[i] = null;
 
-                player.level().playSound(null, worldPosition, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0F, 1.0F);
-                setChanged();
-                return true;
+                    // 掉落 1 个蜜脾
+                    ItemStack combs = new ItemStack(Items.HONEYCOMB, 1);
+                    if (!player.getInventory().add(combs)) player.drop(combs, false);
+
+                    // 播放剪音效
+                    player.level().playSound(null, worldPosition, SoundEvents.BEEHIVE_SHEAR, SoundSource.BLOCKS, 1.0F, 1.0F);
+
+                    // 损耗剪刀耐久
+                    if (!player.getAbilities().instabuild) {
+                        held.hurtAndBreak(1, player, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
+                    }
+
+                    setChanged();
+                    return true;
+                }
             }
         }
         return false;

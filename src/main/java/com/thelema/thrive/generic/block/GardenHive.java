@@ -69,11 +69,11 @@ public class GardenHive extends Block implements EntityBlock {
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
         if (level.isClientSide) return ItemInteractionResult.SUCCESS;
-        if (!(level.getBlockEntity(pos) instanceof GardenHiveBlockEntity hive)) 
+        if (!(level.getBlockEntity(pos) instanceof GardenHiveBlockEntity hive))
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 
-        if (hive.takeHoney(player, stack)) {
-            // 取蜜后，根据剩余数量更新视觉状态（>0 设为 5，=0 设为 0）
+        if (hive.take(player, stack)) {
+            // 取蜜或剪脾后，更新方块视觉状态
             int newVisualLevel = hive.honeyCount() > 0 ? 5 : 0;
             if (state.getValue(HONEY_LEVEL) != newVisualLevel) {
                 level.setBlock(pos, state.setValue(HONEY_LEVEL, newVisualLevel), 3);
