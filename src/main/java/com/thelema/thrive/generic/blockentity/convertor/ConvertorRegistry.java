@@ -1,6 +1,5 @@
 package com.thelema.thrive.generic.blockentity.convertor;
 
-import com.thelema.thrive.generic.blockentity.convertor.Convertor;
 import com.thelema.thrive.register.BlockRegister;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -8,7 +7,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.block.Blocks;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -56,7 +54,7 @@ public class ConvertorRegistry {
                 ResourceLocation.fromNamespaceAndPath("thrive", "plains_to_moss"),
                 BlockRegister.RAMPANT_MOSS.get().asItem(),
                 ResourceKey.create(Registries.BIOME, ResourceLocation.withDefaultNamespace("plains")),
-                new PlainsToMossConvertor());
+                new PlainsToMoss());
 
         register(
                 ResourceLocation.fromNamespaceAndPath("thrive", "forest_to_garden"),

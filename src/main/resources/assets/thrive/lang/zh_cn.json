@@ -9,6 +9,7 @@
   "block.thrive.rampant_moss": "疯长的苔藓块",
   "block.thrive.grass_block": "草块",
   "block.thrive.garden_hive": "花园蜂巢",
+  "block.thrive.garden_bee_barracks": "花园蜜蜂兵营",
 
   "block.thrive.biome_core": "群系核心",
 
@@ -17,11 +18,12 @@
   "item.thrive.lantern_berry_juice_bucket": "灯笼果汁桶",
   "item.thrive.biome_twig": "群系新枝",
   "item.thrive.garden_bee_spawn_egg": "花园蜜蜂刷怪蛋",
+  "item.thrive.garden_soldier_bee_spawn_egg": "花园士兵蜜蜂刷怪蛋",
   "item.thrive.dandelion_honey": "蒲公英蜂蜜",
   "item.thrive.poppy_honey": "虞美人蜂蜜",
   "item.thrive.blue_orchid_honey": "兰花蜂蜜",
   "item.thrive.allium_honey": "绒球葱蜂蜜",
-  "item.thrive.azure_bluet_honey": "雏菊蜂蜜",
+  "item.thrive.azure_bluet_honey": "蓝花美尔花蜂蜜",
   "item.thrive.red_tulip_honey": "红色郁金香蜂蜜",
   "item.thrive.orange_tulip_honey": "橙色郁金香蜂蜜",
   "item.thrive.white_tulip_honey": "白色郁金香蜂蜜",
@@ -43,6 +45,7 @@
   "item.thrive.pink_petals_honey": "粉红色花簇蜂蜜",
   "item.thrive.chorus_flower_honey": "紫颂花蜂蜜",
   "item.thrive.spore_blossom_honey": "孢子花蜂蜜",
+  "item.thrive.garden_pillager_spawn_egg": "花园掠夺者刷怪蛋",
 
   "item.minecraft.potion.effect.wither": "凋零药水",
   "item.minecraft.splash_potion.effect.wither": "喷溅型凋零药水",
@@ -58,6 +61,7 @@
   "effect.thrive.super_hunger": "超级饥饿",
   "effect.thrive.appetite": "食欲",
   "effect.thrive.blinding": "炫目",
+  "effect.thrive.milk": "牛奶",
 
   "biome.thrive.moss_land": "苔藓地",
   "biome.thrive.flower_sea": "花海",
@@ -65,6 +69,9 @@
   "entity.thrive.primed_lantern_berry": "点燃的灯笼果",
   "entity.thrive.lantern_berry_creeper": "灯笼果苦力怕",
   "entity.thrive.garden_bee": "花园蜜蜂",
+  "entity.thrive.garden_soldier_bee": "花园士兵蜜蜂",
+  "entity.thrive.garden_pillager": "花园掠夺者",
+  "entity.thrive.garden_witch": "花园女巫",
 
   "subtitles.thrive.sun_berry_ignite": "太阳浆果被点燃",
   "subtitles.thrive.sun_berry_deflagrate": "太阳浆果爆燃",
@@ -73,15 +80,15 @@
   "death.attack.sun.player": "%1$s 被 %2$s 用太阳焚化了",
 
 
-  "config.jade.plugin_thrive.garden_bee": "花园蜜蜂",
-  "jade.thrive.garden_bee.favorite": "偏好：%s",
-  "jade.thrive.garden_bee.home": "蜂巢：%d, %d, %d",
-  "jade.thrive.garden_bee.pollen": "花粉：%s",
   "config.jade.plugin_thrive.garden_hive": "花园蜂巢",
+  "config.jade.plugin_thrive.garden_bee_barracks": "花园蜜蜂兵营",
   "jade.thrive.garden_hive.bees": "蜜蜂：%d/%d",
-  "jade.thrive.garden_hive.nectar": "花粉：",
-  "jade.thrive.garden_hive.honey": "蜂蜜：",
-  "jade.thrive.garden_hive.progress": "酿蜜中：%d%%",
+  "jade.thrive.garden_hive.nectar": "花粉：%d/%d",
+  "jade.thrive.garden_hive.honey": "蜂蜜：%d/%d",
+  "jade.thrive.garden_hive.progress": "酿造中：%d%%",
+  "jade.thrive.garden_bee_barracks.bees": "士兵蜂：%d/%d",
+  "jade.thrive.garden_bee_barracks.owner": "归属者：%s",
+  "jade.thrive.garden_bee_barracks.owner.none": "归属者：无",
 
   "jei.thrive.garden_hive": "酿蜜"
 

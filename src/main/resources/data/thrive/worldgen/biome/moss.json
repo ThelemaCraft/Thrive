@@ -30,7 +30,9 @@
   "spawners": {
     "ambient": [],
     "axolotls": [],
-    "creature": [],
+    "creature": [
+      { "type": "thrive:garden_soldier_bee", "maxCount": 1, "minCount": 1, "weight": 1 }
+    ],
     "misc": [],
     "monster": [
         { "type": "minecraft:slime", "maxCount": 1, "minCount": 1, "weight": 100 },

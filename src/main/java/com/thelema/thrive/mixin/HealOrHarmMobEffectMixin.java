@@ -20,4 +20,15 @@ public class HealOrHarmMobEffectMixin {
         Damage.hurt(target, ds, amount);
         return true;
     }
+
+    @Redirect(
+            method = "applyEffectTick",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/world/entity/LivingEntity;hurt"
+                            + "(Lnet/minecraft/world/damagesource/DamageSource;F)Z"))
+    private boolean thrive$queueTick(LivingEntity target, DamageSource ds, float amount) {
+        if (target.level().isClientSide) return target.hurt(ds, amount);
+        Damage.hurt(target, ds, amount);
+        return true;
+    }
 }

@@ -13,6 +13,7 @@
   "block.thrive.biome_core": "Biome Core",
   "block.thrive.grass_block": "Grass Block",
   "block.thrive.garden_hive": "Garden Hive",
+  "block.thrive.garden_bee_barracks": "Garden Bee Barracks",
 
 
   "itemGroup.thrive": "Thrive",
@@ -23,6 +24,7 @@
   "item.thrive.fresh_grass_cake": "Fresh Grass Cake",
   "item.thrive.biome_twig": "Biome Twig",
   "item.thrive.garden_bee_spawn_egg": "Garden Bee Spawn Egg",
+  "item.thrive.garden_soldier_bee_spawn_egg": "Garden Soldier Bee Spawn Egg",
   "item.thrive.dandelion_honey": "Dandelion Honey",
   "item.thrive.poppy_honey": "Poppy Honey",
   "item.thrive.blue_orchid_honey": "Blue Orchid Honey",
@@ -49,6 +51,7 @@
   "item.thrive.pink_petals_honey": "Pink Petals Honey",
   "item.thrive.chorus_flower_honey": "Chorus Flower Honey",
   "item.thrive.spore_blossom_honey": "Spore Blossom Honey",
+  "item.thrive.garden_pillager_spawn_egg": "Garden Pillager Spawn Egg",
 
   "item.minecraft.potion.effect.wither": "Potion of Wither",
   "item.minecraft.splash_potion.effect.wither": "Splash Potion of Wither",
@@ -64,6 +67,7 @@
   "effect.thrive.super_hunger": "Super Hunger",
   "effect.thrive.appetite": "Appetite",
   "effect.thrive.blinding": "Blinding",
+  "effect.thrive.milk": "Milk",
 
 
 
@@ -77,6 +81,9 @@
   "entity.thrive.grass_land_sheep.title": "Grass Devourer",
   "entity.thrive.sun": "Sun",
   "entity.thrive.garden_bee": "Garden Bee",
+  "entity.thrive.garden_soldier_bee": "Garden Soldier Bee",
+  "entity.thrive.garden_pillager": "Garden Pillager",
+  "entity.thrive.garden_witch": "Garden Witch",
 
   "subtitles.thrive.sun_berry_ignite": "Sun Berry ignites",
   "subtitles.thrive.sun_berry_deflagrate": "Sun Berry deflagrates",
@@ -85,15 +92,15 @@
   "death.attack.sun.player": "%1$s was incinerated by %2$s",
 
 
-  "config.jade.plugin_thrive.garden_bee": "Garden Bee",
-  "jade.thrive.garden_bee.favorite": "Favorite: %s",
-  "jade.thrive.garden_bee.home": "Home: %d, %d, %d",
-  "jade.thrive.garden_bee.pollen": "Pollen: %s",
   "config.jade.plugin_thrive.garden_hive": "Garden Hive",
+  "config.jade.plugin_thrive.garden_bee_barracks": "Garden Bee Barracks",
   "jade.thrive.garden_hive.bees": "Bees: %d/%d",
-  "jade.thrive.garden_hive.nectar": "Nectar:",
-  "jade.thrive.garden_hive.honey": "Honey:",
+  "jade.thrive.garden_hive.nectar": "Nectar: %d/%d",
+  "jade.thrive.garden_hive.honey": "Honey: %d/%d",
   "jade.thrive.garden_hive.progress": "Brewing: %d%%",
+  "jade.thrive.garden_bee_barracks.bees": "Soldiers: %d/%d",
+  "jade.thrive.garden_bee_barracks.owner": "Owner: %s",
+  "jade.thrive.garden_bee_barracks.owner.none": "Owner: none",
 
   "jei.thrive.garden_hive": "Garden Hive Brewing"
 

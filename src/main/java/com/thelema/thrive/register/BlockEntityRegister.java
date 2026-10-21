@@ -21,6 +21,7 @@ public class BlockEntityRegister {
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BiomeCoreBlockEntity>> THRIVE_CORE;
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SunBerryBlockEntity>> SUN_BERRY;
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GardenHiveBlockEntity>> GARDEN_HIVE;
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GardenBeeBarracksBlockEntity>> GARDEN_BEE_BARRACKS;
 
     static {
 
@@ -34,6 +35,10 @@ public class BlockEntityRegister {
 
         GARDEN_HIVE = BLOCK_ENTITY.register("garden_hive", () -> BlockEntityType.Builder
                 .of(GardenHiveBlockEntity::new, BlockRegister.GARDEN_HIVE.get())
+                .build(null));
+
+        GARDEN_BEE_BARRACKS = BLOCK_ENTITY.register("garden_bee_barracks", () -> BlockEntityType.Builder
+                .of(GardenBeeBarracksBlockEntity::new, BlockRegister.GARDEN_BEE_BARRACKS.get())
                 .build(null));
     }
 

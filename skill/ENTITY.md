@@ -6,10 +6,10 @@
 
 | 类型 | 基类 | 渲染器 | 模型加载 |
 |---|---|---|---|
-| 原版模型 | `Animal` / `Monster` / `PathfinderMob` | `MobRenderer` | **必须注册 `LayerDefinition`** |
+| 原版模型 | `Animal` / `Monster` / `PathfinderMob` | `MobRenderer` | 必须注册 `LayerDefinition` |
 | GeckoLib | 同左 + `GeoAnimatable` | `GeoEntityRenderer<T>` | GeckoLib 自动 |
 
-**判断**：`.geo.json` → GeckoLib；`CubeListBuilder` 代码拼 → 原版模型。
+`.geo.json` → GeckoLib；`CubeListBuilder` 代码拼 → 原版模型。
 
 原版模型最常踩的坑：忘注册 `LayerDefinition`，启动报 `No model for layer thrive:xxx#main`。
 
@@ -99,7 +99,7 @@ public class EntitySpawnRegister {
 
 **参考实现**：`generic/entity/GardenBee.java`、`client/model/entity/GardenBeeModel.java`、`client/render/entity/GardenBeeRenderer.java`。
 
-它涵盖：飞行、驯服、攻击、跨端同步、自定义 AI Goal。复制原版 `BeeModel` 只改泛型即可。
+它涵盖：飞行、驯服、攻击、跨端同步、自定义 Goal。复制原版 `BeeModel` 只改泛型即可。
 
 要点速查：
 
@@ -111,9 +111,109 @@ public class EntitySpawnRegister {
 | 避免误伤主人 | `setTarget` 覆写，过滤 `getOwnerUUID()` |
 | 协同作战 | `OwnerHurtByTargetGoal` + `OwnerHurtTargetGoal` |
 | 采蜜/归巢 | 独立 `Goal`，优先级调度 |
-| 跨端字段 | 走同步位，见第八章 |
+| 跨端字段 | 走同步位，见第十章 |
 
-## 六、模型类 + 渲染器 + 客户端注册
+## 六、路径移动
+
+> 更完整的 AI 系统拆解（GoalSelector / 控制器 / 导航 / 攻击）见 `AI.md`。
+
+`Mob` 有两套移动驱动，用途不同：
+
+| 方式 | 适用 | 特征 |
+|---|---|---|
+| `PathNavigation` | 绕过障碍到**固定点** | A* 寻路，逐节点走 |
+| `MoveControl` | 目标点**持续变化** | 直驱，丝滑 |
+
+### 6.1 `PathNavigation` 的"走走停停"
+
+每 tick 调用链：
+
+```
+Mob.serverAiStep
+  → navigation.tick()          // 逐节点推进
+  → moveControl.tick()         // 执行移动
+```
+
+`PathNavigation.tick()`：
+
+```java
+if (!isDone()) {
+    if (canUpdatePath()) followThePath();    // 到节点附近 → path.advance()
+    Vec3 next = path.getNextEntityPos(mob);  // 下一节点中心
+    mob.getMoveControl().setWantedPosition(next.x, next.y, next.z, speed);
+}
+```
+
+`wanted` 点 = **下一路径节点**，不是最终目标。`MoveControl` 走到 wanted 点附近就刹停，等 `followThePath` 推进节点后再起步。**每节点一个启停**，观感就是"走一下、顿一下"。
+
+### 6.2 `moveTo` 重算加剧卡顿
+
+```java
+public boolean moveTo(double x, double y, double z, double speed) {
+    return this.moveTo(this.createPath(x, y, z, 1), speed);
+}
+```
+
+`createPath` 是**同步 A***（`PathFinder.findPath` 当场跑完），不存在"后台算几 tick"。真正的卡顿来源：
+
+1. 每次 `moveTo` 都重跑一次 A*，目标点一变就重算一次，CPU 也贵；
+2. A* 返回 null → `path = null` → `isDone()` 为 true → 当刻不再给 `MoveControl` 设目标，实体站住；
+3. `recomputePath` 有 20 tick 节流 + `hasDelayedRecomputation`，会漏一拍。
+
+**动态目标 + 频繁 `moveTo` = 一直走停**。
+
+### 6.3 解法：直驱 `MoveControl`
+
+```java
+// KitingGoal.tick()：每 1 秒选一次落脚点，期间固定
+if (--repathTimer <= 0) {
+    repathTimer = 20;
+    dest = pickDest(target);          // 最终目标点，不是路径节点
+}
+witch.getMoveControl().setWantedPosition(dest.x, dest.y, dest.z, 1.0);
+```
+
+- wanted 点 = **最终目标**（不是节点）
+- 选点**低频**（1 秒一次）且期间固定，`MoveControl` 一路走完，**不重算路径**
+- 落脚点随目标移动而移动，实体就持续位移
+- **直驱 Goal 必须 `requiresUpdateEveryTick() { return true; }`**：Goal 默认隔 tick tick，而 `MoveControl` 一旦没收到新的 `setWantedPosition` 就会进 `WAIT` 分支把 `zza` 清零，表现为一卡一卡、平均速度减半
+
+**保持距离的选点**：以目标为圆心、`NEAR`~`FAR` 为半径，方向沿「目标 → 自己」。
+自己在 `MID=(NEAR+FAR)/2` 内侧就去外圈、外侧就回内圈 → 永远在走，同时距离被夹在 `NEAR`~`FAR`。
+不需要左右横跳。
+
+**活例**：`generic/entity/goal/KitingGoal.java`。
+
+### 6.4 卡墙兜底
+
+`MoveControl` 不绕障。撞墙时用 `navigation` 兜底：
+
+```java
+if (witch.position().distanceToSqr(lastPos) < 0.01) {
+    if (++stuckTicks > 20) {
+        witch.getNavigation().moveTo(dest.x, dest.y, dest.z, 1.0);
+        stuckTicks = 0;
+    }
+} else {
+    stuckTicks = 0;
+}
+lastPos = witch.position();
+```
+
+**1 秒没动 → 触发一次 A* 绕障**，绕完继续直驱。
+
+### 6.5 判据
+
+| 场景 | 选 |
+|---|---|
+| 巡逻、走固定路径、绕障优先 | `navigation` |
+| 追击、kiting、目标点每 tick 变 | `moveControl` |
+| 高速移动、无重力（飞行） | `moveControl` |
+| 需要穿门、爬梯 | `navigation` |
+
+**活例**：`generic/entity/goal/KitingGoal.java`。
+
+## 七、模型类 + 渲染器 + 客户端注册
 
 **模型类**（`client/model/entity/GardenBeeModel.java`）：
 
@@ -130,7 +230,7 @@ public GardenBeeRenderer(EntityRendererProvider.Context context) {
 }
 ```
 
-**构造签名必须是 `(EntityRendererProvider.Context)`**——多参数版本无法当 `EntityRendererProvider` 用。
+**构造签名必须是 `(EntityRendererProvider.Context)`**。
 
 **客户端注册**（`client/register/EntityRenderRegister.java`）：
 
@@ -152,7 +252,7 @@ public class EntityRenderRegister {
 
 两个事件都要。少 `RegisterLayerDefinitions` → `bakeLayer` 抛 `No model for layer`。
 
-## 七、GeckoLib 集成
+## 八、GeckoLib 集成
 
 **实体**：`extends Monster implements GeoAnimatable`
 
@@ -178,13 +278,13 @@ assets/thrive/textures/entity/xxx.png
 assets/thrive/animations/xxx.animation.json
 ```
 
-**注册**：只 `registerRenderers`，**不需要** `registerLayerDefinitions`。
+**注册**：只 `registerRenderers`，不需要 `registerLayerDefinitions`。
 
-## 八、跨端字段同步
+## 九、跨端字段同步
 
 普通 `public Item carriedPollen;` 只在服务端有值。客户端渲染器读它永远 `null`。
 
-**解法**：改用同步位。
+解法：改用同步位。
 
 ```java
 private static final EntityDataAccessor<Boolean> DATA_HAS_POLLEN =
@@ -215,7 +315,7 @@ if (!this.level().isClientSide) {
 
 **同步 ≠ 持久化**：`SynchedEntityData` 只在实体存活期间传播，存档靠 `addAdditionalSaveData`。
 
-## 九、NBT
+## 十、NBT
 
 ```java
 @Override
@@ -239,7 +339,7 @@ public void readAdditionalSaveData(CompoundTag tag) {
 
 Item 走 `getKey(...).toString()` / `ResourceLocation.parse(...)`。BlockPos 走 `asLong()` / `BlockPos.of(long)`。
 
-## 十、常见坑
+## 十一、常见坑
 
 | 坑 | 症状 |
 |---|---|
@@ -254,8 +354,9 @@ Item 走 `getKey(...).toString()` / `ResourceLocation.parse(...)`。BlockPos 走
 | 生成蛋缺 `stacksTo(1)` | 和原版不一致 |
 | GeckoLib 忘注册渲染器 | 实体不可见 |
 | 动画名和 JSON key 不符 | 无动画 |
+| 动态目标用 `navigation` | 走走停停 |
 
-## 十一、清单
+## 十二、清单
 
 ### 原版模型实体
 
@@ -285,6 +386,4 @@ assets/thrive/textures/entity/xxx.png         材质
 assets/thrive/lang/{en_us,zh_cn}.json         语言
 ```
 
-## 十一、更多案例
-
-**飞行 + 驯服 + 攻击 + 中立生物 + 繁殖 + 自定义 Goal + 跨端同步 + NBT + 音效**：`generic/entity/GardenBee.java`。
+**活例**：`generic/entity/GardenBee.java`（飞行 + 驯服 + 攻击 + 中立生物 + 繁殖 + 自定义 Goal + 跨端同步 + NBT + 音效）。

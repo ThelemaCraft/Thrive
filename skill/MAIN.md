@@ -159,9 +159,17 @@ public static <B extends Block> DeferredHolder<Block, B> registerWithItem(String
 
 | 任务 | 手册 |
 |---|---|
+| 添加实体 | `ENTITY.md` |
+| 实体 AI（Goal / 控制器 / 导航 / 攻击） | `AI.md` |
 | 添加物品 | `ITEM.md` |
 | 添加方块（无 BE） | `BLOCK.md` |
 | 添加方块 + 方块实体 | `BLOCK_ENTITY.md` |
 | 添加流体 | `FLUID.md` |
+| 添加状态效果 | `EFFECT.md` |
+| 添加药水 | `POTION.md` |
+| 添加粒子 | `PARTICLE.md` |
+| 添加配方 | `RECIPE.md` |
+| 添加结构 | `STRUECTURE.md` |
+| Jade 集成 | `JADE.md` |
 
 新增任务型文档在此登记。

@@ -68,7 +68,7 @@ public class Surface {
 
     // ===== 每 tick 推进位姿 =====
 
-    public void tickAnimation() {
+    public void tick() {
         if (item == null) return;
 
         item.prevBeltPosition = item.beltPosition;

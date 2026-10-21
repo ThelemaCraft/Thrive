@@ -20,7 +20,7 @@ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
 import java.util.Set;
 
-public class PlainsToMossConvertor implements Convertor {
+public class PlainsToMoss implements Convertor {
 
     static final int TICKS_PER_RING = 20;   // 1 秒 1 环
     static final int MAX_RING = 64;         // 4 chunk 半径

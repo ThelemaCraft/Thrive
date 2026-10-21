@@ -5,7 +5,6 @@ import com.thelema.thrive.generic.entity.*;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.entity.animal.Bee;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -28,24 +27,11 @@ public class EntityRegister {
     public static final DeferredHolder<EntityType<?>, EntityType<LanternBerryCreeper>> LANTERN_BERRY_CREEPER;
     public static final DeferredHolder<EntityType<?>, EntityType<GrassLandSheep>> GRASS_LAND_SHEEP;
     public static final DeferredHolder<EntityType<?>, EntityType<GardenBee>> GARDEN_BEE;
-
-    public static final DeferredHolder<EntityType<?>, EntityType<PrimedSunBerry>> PRIMED_SUN_BERRY =
-            ENTITIES.register("primed_sun_berry", () -> EntityType.Builder
-                    .<PrimedSunBerry>of(PrimedSunBerry::new, MobCategory.MISC)
-                    .sized(3.0f, 3.0f)
-                    .fireImmune()
-                    .clientTrackingRange(16)
-                    .updateInterval(1)
-                    .build("primed_sun_berry"));
-
-    public static final DeferredHolder<EntityType<?>, EntityType<Sun>> SUN =
-            ENTITIES.register("sun", () -> EntityType.Builder
-                    .<Sun>of(Sun::new, MobCategory.MISC)
-                    .sized(5.0f, 5.0f)
-                    .fireImmune()
-                    .clientTrackingRange(32)
-                    .updateInterval(1)
-                    .build("sun"));
+    public static final DeferredHolder<EntityType<?>, EntityType<GardenSoldierBee>> GARDEN_SOLDIER_BEE;
+    public static final DeferredHolder<EntityType<?>, EntityType<GardenPillager>> GARDEN_PILLAGER;
+    public static final DeferredHolder<EntityType<?>, EntityType<PrimedSunBerry>> PRIMED_SUN_BERRY;
+    public static final DeferredHolder<EntityType<?>, EntityType<Sun>> SUN;
+    public static final DeferredHolder<EntityType<?>, EntityType<GardenWitch>> GARDEN_WITCH;
 
 
     static {
@@ -71,6 +57,38 @@ public class EntityRegister {
         GARDEN_BEE = ENTITIES.register("garden_bee", () -> EntityType.Builder.of(GardenBee::new, MobCategory.CREATURE)
                 .sized(0.7f, 0.6f)
                 .build("garden_bee"));
+
+        GARDEN_SOLDIER_BEE = ENTITIES.register("garden_soldier_bee", () -> EntityType.Builder.of(GardenSoldierBee::new, MobCategory.CREATURE)
+                .sized(0.7f, 0.6f)
+                .build("garden_soldier_bee"));
+
+        GARDEN_PILLAGER = ENTITIES.register("garden_pillager", () -> EntityType.Builder
+                .of(GardenPillager::new, MobCategory.MONSTER)
+                .sized(0.6F, 1.95F)
+                .clientTrackingRange(8)
+                .build("garden_pillager"));
+
+        PRIMED_SUN_BERRY = ENTITIES.register("primed_sun_berry", () -> EntityType.Builder
+                .<PrimedSunBerry>of(PrimedSunBerry::new, MobCategory.MISC)
+                .sized(3.0f, 3.0f)
+                .fireImmune()
+                .clientTrackingRange(16)
+                .updateInterval(1)
+                .build("primed_sun_berry"));
+
+        SUN = ENTITIES.register("sun", () -> EntityType.Builder
+                .<Sun>of(Sun::new, MobCategory.MISC)
+                .sized(5.0f, 5.0f)
+                .fireImmune()
+                .clientTrackingRange(32)
+                .updateInterval(1)
+                .build("sun"));
+
+        GARDEN_WITCH = ENTITIES.register("garden_witch", () -> EntityType.Builder
+                .of(GardenWitch::new, MobCategory.MONSTER)
+                .sized(0.6F, 1.95F)
+                .clientTrackingRange(8)
+                .build("garden_witch"));
     }
 
 
@@ -81,5 +99,9 @@ public class EntityRegister {
         event.put(LANTERN_BERRY_CREEPER.get(), LanternBerryCreeper.createAttributes().build());
         event.put(GRASS_LAND_SHEEP.get(), GrassLandSheep.createAttributes().build());
         event.put(GARDEN_BEE.get(), GardenBee.createAttributes().build());
+        event.put(GARDEN_SOLDIER_BEE.get(), GardenSoldierBee.createAttributes().build());
+        event.put(GARDEN_PILLAGER.get(), GardenPillager.createAttributes().build());
+        event.put(GARDEN_WITCH.get(), GardenWitch.createAttributes().build());
+
     }
 }

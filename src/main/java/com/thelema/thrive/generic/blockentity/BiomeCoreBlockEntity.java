@@ -54,7 +54,7 @@ public class BiomeCoreBlockEntity extends BlockEntity {
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, BiomeCoreBlockEntity be) {
-        be.surface.tickAnimation();
+        be.surface.tick();
         be.rotator.tick();
         if (level.isClientSide) return;
 

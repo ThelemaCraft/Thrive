@@ -41,6 +41,7 @@ public class BlockRegister {
     public static final DeferredHolder<Block, Block> BIOME_CORE;
     public static final DeferredHolder<Block, Block> RAMPANT_MOSS;
     public static final DeferredHolder<Block, Block> GARDEN_HIVE;
+    public static final DeferredHolder<Block, Block> GARDEN_BEE_BARRACKS;
 
     static {
 
@@ -66,6 +67,8 @@ public class BlockRegister {
         RAMPANT_MOSS = BLOCK.register("rampant_moss", RampantMoss::new);
 
         GARDEN_HIVE = registerWithItem("garden_hive", GardenHive::new);
+
+        GARDEN_BEE_BARRACKS = registerWithItem("garden_bee_barracks", GardenBeeBarracks::new);
 
     }
 
