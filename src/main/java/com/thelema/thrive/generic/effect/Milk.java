@@ -1,20 +1,25 @@
 package com.thelema.thrive.generic.effect;
 
-import java.util.Set;
-
+import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.register.EffectRegister;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.EffectCure;
 import net.neoforged.neoforge.common.EffectCures;
 import net.neoforged.neoforge.event.entity.living.MobEffectEvent;
 
-@EventBusSubscriber
+import java.util.Set;
+
+@EventBusSubscriber(modid = ThriveMod.MOD_ID)
 public class Milk extends MobEffect {
+
+    // 内部更新标记：防止 tryConsumeMilk 重新添加效果时触发拦截事件
+    private static boolean isInternalUpdate = false;
 
     public Milk() {
         super(MobEffectCategory.NEUTRAL, 0xFFFFFFFF);
@@ -22,47 +27,67 @@ public class Milk extends MobEffect {
 
     @Override
     public void fillEffectCures(Set<EffectCure> cures, MobEffectInstance effectInstance) {
-        // 牛奶效果不加入任何 cure，所以自身不会被牛奶（或奶桶）清除
+        // 牛奶自身不可被牛奶清除
+    }
+
+    @Override
+    public void onEffectStarted(LivingEntity entity, int amplifier) {
+        if (isInternalUpdate) return;
+        // 尝试清除身上已有的可被牛奶治愈的效果
+        // removeEffectsCuredBy 会返回 boolean，代表是否清除了至少一个效果
+        if (entity.removeEffectsCuredBy(EffectCures.MILK)) {
+            // 如果确实清除了效果，扣除 30 秒时间
+            tryConsumeMilk(entity);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onEffectApplicable(MobEffectEvent.Applicable event) {
+        // 1. 只在服务端处理，避免客户端刷屏和幽灵拦截
+        if (event.getEntity().level().isClientSide()) return;
+
+        // 2. 如果是内部扣时间重新添加触发的，直接放行
+        if (isInternalUpdate) return;
+
+        MobEffectInstance added = event.getEffectInstance();
+
+        // 3. 如果是牛奶本身，放行
+        if (added == null || added.getEffect().value() instanceof Milk) return;
+
+        // 4. 实体有牛奶，且新加的效果可被牛奶清除 -> 拦截并扣时间
+        if (event.getEntity().hasEffect(EffectRegister.MILK) && added.getCures().contains(EffectCures.MILK)) {
+            if (tryConsumeMilk(event.getEntity())) {
+                event.setResult(MobEffectEvent.Applicable.Result.DO_NOT_APPLY);
+            }
+        }
     }
 
     /**
-     * 拦截实体获得新效果的事件
+     * 扣除牛奶 600 tick 时间。
+     * @return 是否成功扣除（如果身上没牛奶则返回 false）
      */
-    @SubscribeEvent
-    public static void onEffectAdded(MobEffectEvent.Added event) {
-        LivingEntity entity = event.getEntity();
-        MobEffectInstance added = event.getEffectInstance();
-        if (added == null) return;
+    public static boolean tryConsumeMilk(LivingEntity entity) {
+        MobEffectInstance milk = entity.getEffect(EffectRegister.MILK);
+        if (milk == null) return false;
 
-        // 1. 如果新加的效果不能被牛奶清除，或者是牛奶本身，直接放行
-        if (!added.getCures().contains(EffectCures.MILK) || added.getEffect() instanceof Milk) {
-            return;
+        int newDuration = milk.getDuration() - 400;
+
+        // 原版 update() 无法缩短时间，必须先移除
+        entity.removeEffect(EffectRegister.MILK);
+
+        if (newDuration > 0) {
+            isInternalUpdate = true; // 开启标记
+            entity.addEffect(new MobEffectInstance(
+                    milk.getEffect(),
+                    newDuration,
+                    milk.getAmplifier(),
+                    milk.isAmbient(),
+                    milk.isVisible(),
+                    milk.showIcon()
+            ));
+            isInternalUpdate = false; // 关闭标记
         }
 
-        // 2. 检查实体身上是否有牛奶效果
-        MobEffectInstance milkEffect = entity.getEffect(EffectRegister.MILK); // 确保换成你实际的注册类
-
-        if (milkEffect != null) {
-            // 3. 消耗 30 秒（600 tick）的持续时间
-            int newDuration = milkEffect.getDuration() - 600;
-
-            if (newDuration > 0) {
-                // 更新剩余时间（保留原有的等级、粒子等属性）
-                milkEffect.update(new MobEffectInstance(
-                        milkEffect.getEffect(),
-                        newDuration,
-                        milkEffect.getAmplifier(),
-                        milkEffect.isAmbient(),
-                        milkEffect.isVisible(),
-                        milkEffect.showIcon()
-                ));
-            } else {
-                // 如果时间不够扣了，直接移除牛奶效果
-                entity.removeEffect(EffectRegister.MILK);
-            }
-
-            // 4. 清除刚刚想要加上的 buff
-            entity.removeEffect(added.getEffect());
-}
+        return true;
     }
 }

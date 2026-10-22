@@ -99,7 +99,10 @@
   "jade.thrive.garden_bee_nest.honey": "Honey: %d/%d",
   "jade.thrive.garden_bee_nest.progress": "Brewing: %d%%",
 
-  "jei.thrive.garden_bee_nest": "Garden Bee Nest Brewing"
+  "jei.thrive.garden_bee_nest": "Garden Bee Nest Brewing",
+
+  "item.thrive.potion_barrel": "Potion Barrel",
+  "item.thrive.loot_barrel.lore": "Place on the ground and open to retrieve the loot inside."
 
 
 }

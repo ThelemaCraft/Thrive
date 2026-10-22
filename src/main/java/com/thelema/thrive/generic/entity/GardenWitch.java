@@ -1,11 +1,14 @@
 package com.thelema.thrive.generic.entity;
 
+import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.generic.entity.goal.KitingGoal;
 import com.thelema.thrive.generic.entity.goal.NearestThreatTargetGoal;
 import com.thelema.thrive.mixin.WitchAccessor;
 import com.thelema.thrive.register.PotionRegister;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.tags.FluidTags;
@@ -27,10 +30,13 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
+import net.minecraft.world.item.component.ItemContainerContents;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -141,7 +147,6 @@ public class GardenWitch extends Witch {
         }
     }
 
-
     // ==================== 投掷 ====================
 
     @Override
@@ -204,23 +209,48 @@ public class GardenWitch extends Witch {
     protected void dropCustomDeathLoot(ServerLevel level, DamageSource source, boolean recentlyHit) {
         super.dropCustomDeathLoot(level, source, recentlyHit);
 
-        // 1. 决定药水形态
-        float roll = this.random.nextFloat();
-        Item potionItem;
-        if (roll < 0.8F) {
-            potionItem = Items.LINGERING_POTION; // 80%
-        } else if (roll < 0.9F) {
-            potionItem = Items.SPLASH_POTION;    // 10%
-        } else {
-            potionItem = Items.POTION;           // 10%
+        int count = 8 + ThriveMod.R.nextInt(8); // [8, 15]
+        List<ItemStack> potions = new ArrayList<>();
+
+        for (int i = 0; i < count; i++) {
+            // 1. 决定药水形态
+            float roll = this.random.nextFloat();
+            Item potionItem;
+            if (roll < 0.8F) {
+                potionItem = Items.LINGERING_POTION; // 80%
+            } else if (roll < 0.9F) {
+                potionItem = Items.SPLASH_POTION;    // 10%
+            } else {
+                potionItem = Items.POTION;           // 10%
+            }
+
+            // 2. 从池子随机抽一种药水并生成物品
+            Holder<Potion> potion = DROP_POOL.get(this.random.nextInt(DROP_POOL.size()));
+            ItemStack stack = PotionContents.createItemStack(potionItem, potion);
+
+            // 3. 加入列表
+            potions.add(stack);
         }
 
-        // 2. 从池子随机抽一种药水并生成物品
-        Holder<Potion> potion = DROP_POOL.get(this.random.nextInt(DROP_POOL.size()));
-        ItemStack stack = PotionContents.createItemStack(potionItem, potion);
+        // 4. 打包进木桶
+        ItemStack barrel = new ItemStack(Items.BARREL);
+        // 将药水列表转换为容器组件
+        ItemContainerContents contents = ItemContainerContents.fromItems(potions);
+        barrel.set(DataComponents.CONTAINER, contents);
 
-        // 3. 掉落
-        this.spawnAtLocation(stack);
+        // 设置自定义名称（翻译键，并加上金色稀有度）
+        barrel.set(DataComponents.CUSTOM_NAME,
+                Component.translatable("item.thrive.potion_barrel").withStyle(style -> style.withItalic(false)));
+
+        // 设置 Lore 提示（翻译键，并加上灰色斜体样式）
+        barrel.set(DataComponents.LORE, new ItemLore(
+                List.of(Component.translatable("item.thrive.loot_barrel.lore").withStyle(ChatFormatting.WHITE))
+        ));
+
+        // 5. 只掉落这一个木桶
+        this.spawnAtLocation(barrel);
+
+
     }
 
 }

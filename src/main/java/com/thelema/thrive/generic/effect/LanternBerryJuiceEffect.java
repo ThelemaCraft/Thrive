@@ -9,13 +9,21 @@ import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.common.EffectCure;
 import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+
+import java.util.Set;
 
 @EventBusSubscriber(modid = ThriveMod.MOD_ID)
 public class LanternBerryJuiceEffect extends MobEffect {
 
     public LanternBerryJuiceEffect() {
         super(MobEffectCategory.BENEFICIAL, 0xFFD700);
+    }
+
+    @Override
+    public void fillEffectCures(Set<EffectCure> cures, MobEffectInstance effectInstance) {
+        // 无法被牛奶治愈
     }
 
     @Override
@@ -26,7 +34,18 @@ public class LanternBerryJuiceEffect extends MobEffect {
     @Override
     public boolean applyEffectTick(LivingEntity entity, int amplifier) {
         if (!entity.level().isClientSide) {
+            // 清火逻辑
             entity.setRemainingFireTicks(0);
+
+            // 水清刷逻辑
+            if (entity.isInWaterRainOrBubble() && entity.tickCount % 20 == 0) {
+                MobEffectInstance juice = entity.getEffect(EffectRegister.LANTERN_BERRY_JUICE);
+                if (juice != null) {
+                    // 380 + 20 = 400，每s减少 20s持续时间，2min只需要6s就失去该效果
+                    int newDuration = juice.getDuration() - 380;
+                    updateEffectDuration(entity, juice, newDuration);
+                }
+            }
         }
         return true;
     }
@@ -54,6 +73,9 @@ public class LanternBerryJuiceEffect extends MobEffect {
      */
     @SubscribeEvent
     public static void onIncomingDamage(LivingIncomingDamageEvent event) {
+        // 只在服务端处理，防止客户端重复扣减或幽灵状态
+        if (event.getEntity().level().isClientSide()) return;
+
         if (!event.getSource().is(DamageTypeTags.IS_FIRE)) return;
 
         LivingEntity entity = event.getEntity();
@@ -73,15 +95,27 @@ public class LanternBerryJuiceEffect extends MobEffect {
         event.setAmount(D * (1.0f - actualR));
 
         int newDuration = have - actualConsume;
-        entity.removeEffect(EffectRegister.LANTERN_BERRY_JUICE);
-        if (newDuration > 0) {
-            entity.addEffect(new MobEffectInstance(
-                    EffectRegister.LANTERN_BERRY_JUICE,
+        updateEffectDuration(entity, inst, newDuration);
+    }
+
+    /**
+     * 安全地更新持续时间。
+     * 在 tick 循环或事件中直接 remove + add 会引发 ConcurrentModificationException 或幽灵 HUD。
+     * forceAddEffect 直接覆盖实例，不触发 Added 事件，不破坏迭代器。
+     */
+    private static void updateEffectDuration(LivingEntity entity, MobEffectInstance oldInst, int newDuration) {
+        if (newDuration <= 0) {
+            entity.removeEffect(EffectRegister.LANTERN_BERRY_JUICE);
+        } else {
+            MobEffectInstance newInst = new MobEffectInstance(
+                    oldInst.getEffect(),
                     newDuration,
-                    inst.getAmplifier(),
-                    inst.isAmbient(),
-                    inst.isVisible(),
-                    inst.showIcon()));
+                    oldInst.getAmplifier(),
+                    oldInst.isAmbient(),
+                    oldInst.isVisible(),
+                    oldInst.showIcon()
+            );
+            entity.forceAddEffect(newInst, null);
         }
     }
 }

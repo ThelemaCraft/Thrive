@@ -92,6 +92,8 @@
   "jade.thrive.garden_bee_nest.progress": "酿造中：%d%%",
 
 
-  "jei.thrive.garden_bee_nest": "酿蜜"
+  "jei.thrive.garden_bee_nest": "酿蜜",
 
+  "item.thrive.potion_barrel": "装药水的木桶",
+  "item.thrive.loot_barrel.lore": "放置在地上打开，即可获取里面的战利品"
 }
