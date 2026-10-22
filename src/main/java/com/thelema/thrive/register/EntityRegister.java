@@ -27,7 +27,6 @@ public class EntityRegister {
     public static final DeferredHolder<EntityType<?>, EntityType<LanternBerryCreeper>> LANTERN_BERRY_CREEPER;
     public static final DeferredHolder<EntityType<?>, EntityType<GrassLandSheep>> GRASS_LAND_SHEEP;
     public static final DeferredHolder<EntityType<?>, EntityType<GardenBee>> GARDEN_BEE;
-    public static final DeferredHolder<EntityType<?>, EntityType<GardenSoldierBee>> GARDEN_SOLDIER_BEE;
     public static final DeferredHolder<EntityType<?>, EntityType<GardenPillager>> GARDEN_PILLAGER;
     public static final DeferredHolder<EntityType<?>, EntityType<PrimedSunBerry>> PRIMED_SUN_BERRY;
     public static final DeferredHolder<EntityType<?>, EntityType<Sun>> SUN;
@@ -58,9 +57,6 @@ public class EntityRegister {
                 .sized(0.7f, 0.6f)
                 .build("garden_bee"));
 
-        GARDEN_SOLDIER_BEE = ENTITIES.register("garden_soldier_bee", () -> EntityType.Builder.of(GardenSoldierBee::new, MobCategory.CREATURE)
-                .sized(0.7f, 0.6f)
-                .build("garden_soldier_bee"));
 
         GARDEN_PILLAGER = ENTITIES.register("garden_pillager", () -> EntityType.Builder
                 .of(GardenPillager::new, MobCategory.MONSTER)
@@ -99,7 +95,6 @@ public class EntityRegister {
         event.put(LANTERN_BERRY_CREEPER.get(), LanternBerryCreeper.createAttributes().build());
         event.put(GRASS_LAND_SHEEP.get(), GrassLandSheep.createAttributes().build());
         event.put(GARDEN_BEE.get(), GardenBee.createAttributes().build());
-        event.put(GARDEN_SOLDIER_BEE.get(), GardenSoldierBee.createAttributes().build());
         event.put(GARDEN_PILLAGER.get(), GardenPillager.createAttributes().build());
         event.put(GARDEN_WITCH.get(), GardenWitch.createAttributes().build());
 

@@ -1,7 +1,6 @@
 package com.thelema.thrive.integration.jei;
 
 import com.thelema.thrive.generic.blockentity.other.GardenHiveRecipes;
-import com.thelema.thrive.register.ItemRegister;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
@@ -28,7 +27,7 @@ public class HoneyRecipeCategory implements IRecipeCategory<GardenHiveRecipes.Re
     }
 
     @Override public RecipeType<GardenHiveRecipes.Recipe> getRecipeType() { return TYPE; }
-    @Override public Component getTitle() { return Component.translatable("jei.thrive.garden_hive"); }
+    @Override public Component getTitle() { return Component.translatable("jei.thrive.garden_bee_nest"); }
     @Override public IDrawable getIcon() { return icon; }
     @Override public int getWidth() { return 130; }
     @Override public int getHeight() { return 40; }

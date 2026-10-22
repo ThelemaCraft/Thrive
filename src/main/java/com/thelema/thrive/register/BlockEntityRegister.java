@@ -20,8 +20,7 @@ public class BlockEntityRegister {
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<BiomeCoreBlockEntity>> THRIVE_CORE;
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<SunBerryBlockEntity>> SUN_BERRY;
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GardenHiveBlockEntity>> GARDEN_HIVE;
-    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GardenBeeBarracksBlockEntity>> GARDEN_BEE_BARRACKS;
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<GardenBeeBestBlockEntity>> GARDEN_BEE_NEST;
 
     static {
 
@@ -33,13 +32,10 @@ public class BlockEntityRegister {
                 .of(BiomeCoreBlockEntity::new, BlockRegister.BIOME_CORE.get())
                 .build(null));
 
-        GARDEN_HIVE = BLOCK_ENTITY.register("garden_hive", () -> BlockEntityType.Builder
-                .of(GardenHiveBlockEntity::new, BlockRegister.GARDEN_HIVE.get())
+        GARDEN_BEE_NEST = BLOCK_ENTITY.register("garden_bee_nest", () -> BlockEntityType.Builder
+                .of(GardenBeeBestBlockEntity::new, BlockRegister.GARDEN_BEE_NEST.get())
                 .build(null));
 
-        GARDEN_BEE_BARRACKS = BLOCK_ENTITY.register("garden_bee_barracks", () -> BlockEntityType.Builder
-                .of(GardenBeeBarracksBlockEntity::new, BlockRegister.GARDEN_BEE_BARRACKS.get())
-                .build(null));
     }
 
 

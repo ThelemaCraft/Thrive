@@ -1,8 +1,0 @@
-{
-  "variants": {
-    "facing=north": { "model": "thrive:block/garden_bee_barracks" },
-    "facing=east":  { "model": "thrive:block/garden_bee_barracks", "y": 90 },
-    "facing=south": { "model": "thrive:block/garden_bee_barracks", "y": 180 },
-    "facing=west":  { "model": "thrive:block/garden_bee_barracks", "y": 270 }
-  }
-}

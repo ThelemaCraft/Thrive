@@ -15,13 +15,21 @@ public class GardenBeeRenderer extends MobRenderer<GardenBee, GardenBeeModel<Gar
             ResourceLocation.withDefaultNamespace("textures/entity/bee/bee.png");
     private static final ResourceLocation NECTAR_BEE_TEXTURE =
             ResourceLocation.withDefaultNamespace("textures/entity/bee/bee_nectar.png");
+    private static final ResourceLocation ANGRY_BEE_TEXTURE =
+            ResourceLocation.withDefaultNamespace("textures/entity/bee/bee_angry.png");
+    private static final ResourceLocation ANGRY_NECTAR_BEE_TEXTURE =
+            ResourceLocation.withDefaultNamespace("textures/entity/bee/bee_angry_nectar.png");
 
     public GardenBeeRenderer(EntityRendererProvider.Context context) {
         super(context, new GardenBeeModel<>(context.bakeLayer(GardenBeeModel.LAYER_LOCATION)), 0.4F);
     }
 
     @Override
-    public ResourceLocation getTextureLocation(GardenBee bee) {
-        return bee.hasPollen() ? NECTAR_BEE_TEXTURE : BEE_TEXTURE;
+    public ResourceLocation getTextureLocation(GardenBee entity) {
+        if (entity.isAngry()) {
+            return entity.hasNectar() ? ANGRY_NECTAR_BEE_TEXTURE : ANGRY_BEE_TEXTURE;
+        } else {
+            return entity.hasNectar() ? NECTAR_BEE_TEXTURE : BEE_TEXTURE;
+        }
     }
 }

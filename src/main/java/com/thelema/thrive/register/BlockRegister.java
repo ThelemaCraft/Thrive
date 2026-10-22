@@ -40,8 +40,7 @@ public class BlockRegister {
     public static final DeferredHolder<Block, Block> GRASS_BLOCK;
     public static final DeferredHolder<Block, Block> BIOME_CORE;
     public static final DeferredHolder<Block, Block> RAMPANT_MOSS;
-    public static final DeferredHolder<Block, Block> GARDEN_HIVE;
-    public static final DeferredHolder<Block, Block> GARDEN_BEE_BARRACKS;
+    public static final DeferredHolder<Block, Block> GARDEN_BEE_NEST;
 
     static {
 
@@ -63,12 +62,11 @@ public class BlockRegister {
         // 群系核心
         BIOME_CORE = registerWithItem("biome_core", BiomeCore::new);
 
-        // 疯长的苔藓块：摆到群系核心上启动转换。堆叠上限为 1，物品在 ItemRegister 里单独注册
+        // 疯长的苔藓块
         RAMPANT_MOSS = BLOCK.register("rampant_moss", RampantMoss::new);
 
-        GARDEN_HIVE = registerWithItem("garden_hive", GardenHive::new);
+        GARDEN_BEE_NEST = registerWithItem("garden_bee_nest", GardenBeeNest::new);
 
-        GARDEN_BEE_BARRACKS = registerWithItem("garden_bee_barracks", GardenBeeBarracks::new);
 
     }
 

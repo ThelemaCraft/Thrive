@@ -1,9 +1,7 @@
 package com.thelema.thrive.client.sound;
 
 import com.thelema.thrive.ThriveMod;
-import com.thelema.thrive.client.sound.GardenBeeSoundInstance;
 import com.thelema.thrive.generic.entity.GardenBee;
-import com.thelema.thrive.generic.entity.GardenSoldierBee;
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -20,10 +18,6 @@ public class ClientSoundEvents {
         if (event.getEntity() instanceof GardenBee bee) {
             Minecraft.getInstance().getSoundManager()
                     .play(new GardenBeeSoundInstance(bee, false, null));
-        } else if (event.getEntity() instanceof GardenSoldierBee bee) {
-
-            Minecraft.getInstance().getSoundManager()
-                    .play(new GardenBeeSoundInstance(bee, bee.getTarget() != null, () -> bee.getTarget() != null));
         }
     }
 }

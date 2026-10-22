@@ -42,7 +42,6 @@ public class ItemRegister {
     public static final DeferredHolder<Item, Item> BIOME_TWIG;
     public static final DeferredHolder<Item, Item> RAMPANT_MOSS;
     public static final DeferredHolder<Item, Item> GARDEN_BEE_SPAWN_EGG;
-    public static final DeferredHolder<Item, Item> GARDEN_SOLDIER_BEE_SPAWN_EGG;
     public static final DeferredHolder<Item, Item> GARDEN_PILLAGER_SPAWN_EGG;
     public static final DeferredHolder<Item, Item> GARDEN_WITCH_SPAWN_EGG;
 
@@ -106,11 +105,6 @@ public class ItemRegister {
                 0xFFFFFF,   // 高光：白
                 new Item.Properties()));
 
-        GARDEN_SOLDIER_BEE_SPAWN_EGG = ITEM.register("garden_soldier_bee_spawn_egg", () -> new DeferredSpawnEggItem(
-                EntityRegister.GARDEN_SOLDIER_BEE,
-                0x9A7B2F,   // 底：暗金
-                0xD8D8D8,   // 高光：铁灰
-                new Item.Properties()));
 
         GARDEN_PILLAGER_SPAWN_EGG = ITEM.register("garden_pillager_spawn_egg",
                 () -> new DeferredSpawnEggItem(

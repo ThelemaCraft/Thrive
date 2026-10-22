@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.generic.entity.GardenBee;
 import net.minecraft.client.model.AgeableListModel;
+import net.minecraft.client.model.ModelUtils;
 import net.minecraft.client.model.geom.ModelLayerLocation;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
@@ -44,6 +45,7 @@ public class GardenBeeModel<T extends GardenBee> extends AgeableListModel<T> {
     private final ModelPart stinger;
     private final ModelPart leftAntenna;
     private final ModelPart rightAntenna;
+    private float rollAmount;
 
     public GardenBeeModel(ModelPart root) {
         super(false, 24.0F, 0.0F);
@@ -103,6 +105,12 @@ public class GardenBeeModel<T extends GardenBee> extends AgeableListModel<T> {
     }
 
     @Override
+    public void prepareMobModel(T entity, float limbSwing, float limbSwingAmount, float partialTick) {
+        super.prepareMobModel(entity, limbSwing, limbSwingAmount, partialTick);
+        this.rollAmount = entity.getRollAmount(partialTick);
+    }
+
+    @Override
     public void setupAnim(T entity, float limbSwing, float limbSwingAmount,
                           float ageInTicks, float netHeadYaw, float headPitch) {
         this.rightWing.xRot = 0.0F;
@@ -135,18 +143,23 @@ public class GardenBeeModel<T extends GardenBee> extends AgeableListModel<T> {
             this.bone.zRot = 0.0F;
         }
 
-        // 移除了 !entity.isAngry() 的外层判断
-        this.bone.xRot = 0.0F;
-        this.bone.yRot = 0.0F;
-        this.bone.zRot = 0.0F;
-        if (!resting) {
-            float bob = Mth.cos(ageInTicks * 0.18F);
-            this.bone.xRot = 0.1F + bob * (float) Math.PI * 0.025F;
-            this.leftAntenna.xRot = bob * (float) Math.PI * 0.03F;
-            this.rightAntenna.xRot = bob * (float) Math.PI * 0.03F;
-            this.frontLeg.xRot = -bob * (float) Math.PI * 0.1F + (float) (Math.PI / 8);
-            this.backLeg.xRot = -bob * (float) Math.PI * 0.05F + (float) (Math.PI / 4);
-            this.bone.y = BEE_Y_BASE - Mth.cos(ageInTicks * 0.18F) * 0.9F;
+        if (!entity.isAngry()) {
+            this.bone.xRot = 0.0F;
+            this.bone.yRot = 0.0F;
+            this.bone.zRot = 0.0F;
+            if (!resting) {
+                float bob = Mth.cos(ageInTicks * 0.18F);
+                this.bone.xRot = 0.1F + bob * (float) Math.PI * 0.025F;
+                this.leftAntenna.xRot = bob * (float) Math.PI * 0.03F;
+                this.rightAntenna.xRot = bob * (float) Math.PI * 0.03F;
+                this.frontLeg.xRot = -bob * (float) Math.PI * 0.1F + (float) (Math.PI / 8);
+                this.backLeg.xRot = -bob * (float) Math.PI * 0.05F + (float) (Math.PI / 4);
+                this.bone.y = BEE_Y_BASE - Mth.cos(ageInTicks * 0.18F) * 0.9F;
+            }
+        }
+
+        if (this.rollAmount > 0.0F) {
+            this.bone.xRot = ModelUtils.rotlerpRad(this.bone.xRot, 3.0915928F, this.rollAmount);
         }
     }
 

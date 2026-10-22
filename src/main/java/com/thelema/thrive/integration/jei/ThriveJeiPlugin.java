@@ -33,7 +33,7 @@ public class ThriveJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         registration.addRecipeCatalyst(
-                new ItemStack(BlockRegister.GARDEN_HIVE.get()),
+                new ItemStack(BlockRegister.GARDEN_BEE_NEST.get()),
                 HoneyRecipeCategory.TYPE);
     }
 }

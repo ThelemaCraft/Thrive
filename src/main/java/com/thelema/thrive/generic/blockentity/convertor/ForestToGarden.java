@@ -1,8 +1,8 @@
 package com.thelema.thrive.generic.blockentity.convertor;
 
-import com.thelema.thrive.generic.block.GardenHive;
+import com.thelema.thrive.generic.block.GardenBeeNest;
 import com.thelema.thrive.generic.blockentity.BiomeCoreBlockEntity;
-import com.thelema.thrive.generic.blockentity.GardenHiveBlockEntity;
+import com.thelema.thrive.generic.blockentity.GardenBeeBestBlockEntity;
 import com.thelema.thrive.register.BlockRegister;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -14,7 +14,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.block.BeehiveBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.BonemealableBlock;
@@ -127,7 +126,7 @@ public class ForestToGarden implements Convertor {
                     || s.is(BlockTags.FLOWERS)
                     || s.is(BlockTags.SAPLINGS);
             boolean tree = s.is(BlockTags.LOGS) || s.is(BlockTags.LEAVES);
-            boolean hive = s.getBlock() instanceof BeehiveBlock;
+            boolean hive = s.getBlock() instanceof GardenBeeNest;
             if (!plant && !tree && !hive) return;
 
             set(level, p, air);
@@ -238,13 +237,20 @@ public class ForestToGarden implements Convertor {
 
             Direction facing = open.get(random.nextInt(open.size()));
             BlockPos hivePos = trunk.relative(facing);
-            set(level, hivePos, BlockRegister.GARDEN_HIVE.get().defaultBlockState()
-                    .setValue(GardenHive.FACING, facing));
+            set(level, hivePos, BlockRegister.GARDEN_BEE_NEST.get().defaultBlockState()
+                    .setValue(GardenBeeNest.FACING, facing));
             markDirty(be, hivePos);
 
-            if (level.getBlockEntity(hivePos) instanceof GardenHiveBlockEntity hive) {
-                hive.occupantCount = 1 + random.nextInt(2);
-                hive.setChanged();
+            if (level.getBlockEntity(hivePos) instanceof GardenBeeBestBlockEntity hive) {
+                // 生成 1 到 2 只蜜蜂
+                int numBees = 1 + random.nextInt(2);
+                for (int i = 0; i < numBees; i++) {
+                    // 随机生成它们已经在里面待了多少 tick（原版范围通常是 0~599）
+                    int ticksInHive = random.nextInt(599);
+                    // 使用你自定义实体里的 create 方法生成占位数据并塞进去
+                    hive.storeBee(GardenBeeBestBlockEntity.Occupant.create(ticksInHive));
+                }
+                hive.setChanged(); // 标记方块实体已更新，确保保存到存档
             }
             return;
         }

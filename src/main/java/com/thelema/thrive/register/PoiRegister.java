@@ -13,15 +13,11 @@ public class PoiRegister {
     static final DeferredRegister<PoiType> POI =
             DeferredRegister.create(Registries.POINT_OF_INTEREST_TYPE, ThriveMod.MOD_ID);
 
-    public static final DeferredHolder<PoiType, PoiType> GARDEN_HIVE =
-            POI.register("garden_hive", () -> new PoiType(
-                    ImmutableSet.copyOf(BlockRegister.GARDEN_HIVE.get().getStateDefinition().getPossibleStates()),
+    public static final DeferredHolder<PoiType, PoiType> GARDEN_BEE_NEST =
+            POI.register("garden_bee_nest", () -> new PoiType(
+                    ImmutableSet.copyOf(BlockRegister.GARDEN_BEE_NEST.get().getStateDefinition().getPossibleStates()),
                     0, 1));   // 0 票、1 格
 
-    public static final DeferredHolder<PoiType, PoiType> GARDEN_BEE_BARRACKS =
-            POI.register("garden_bee_barracks", () -> new PoiType(
-                    ImmutableSet.copyOf(BlockRegister.GARDEN_BEE_BARRACKS.get().getStateDefinition().getPossibleStates()),
-                    0, 1));
 
 
     public static void register(IEventBus bus) {

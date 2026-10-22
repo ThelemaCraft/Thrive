@@ -7,13 +7,10 @@
   "block.thrive.lantern_berry": "Lantern Berry",
   "block.thrive.sun_berry": "Sun Berry",
   "block.thrive.rampant_moss": "Rampant Moss",
-  "block.thrive.tall_grass_top": "Tall Grass Top",
-  "block.thrive.tall_grass_bottom": "Tall Grass Bottom",
 
   "block.thrive.biome_core": "Biome Core",
   "block.thrive.grass_block": "Grass Block",
-  "block.thrive.garden_hive": "Garden Hive",
-  "block.thrive.garden_bee_barracks": "Garden Bee Barracks",
+  "block.thrive.garden_bee_nest": "Garden Bee Nest",
 
 
   "itemGroup.thrive": "Thrive",
@@ -70,8 +67,6 @@
   "effect.thrive.blinding": "Blinding",
   "effect.thrive.milk": "Milk",
 
-
-
   "biome.thrive.moss_land": "Moss Land",
   "biome.thrive.flower_sea": "Flower Sea",
 
@@ -82,7 +77,8 @@
   "entity.thrive.grass_land_sheep.title": "Grass Devourer",
   "entity.thrive.sun": "Sun",
   "entity.thrive.garden_bee": "Garden Bee",
-  "entity.thrive.garden_soldier_bee": "Garden Soldier Bee",
+  "entity.thrive.garden_bee.patrol": "Garden Bee: Idle Patrol Mode",
+  "entity.thrive.garden_bee.follow": "Garden Bee: Follow Mode",
   "entity.thrive.garden_pillager": "Garden Pillager",
   "entity.thrive.garden_witch": "Garden Witch",
 
@@ -93,16 +89,13 @@
   "death.attack.sun.player": "%1$s was incinerated by %2$s",
 
 
-  "config.jade.plugin_thrive.garden_hive": "Garden Hive",
-  "config.jade.plugin_thrive.garden_bee_barracks": "Garden Bee Barracks",
-  "jade.thrive.garden_hive.bees": "Bees: %d/%d",
-  "jade.thrive.garden_hive.nectar": "Nectar: %d/%d",
-  "jade.thrive.garden_hive.honey": "Honey: %d/%d",
-  "jade.thrive.garden_hive.progress": "Brewing: %d%%",
-  "jade.thrive.garden_bee_barracks.bees": "Soldiers: %d/%d",
-  "jade.thrive.garden_bee_barracks.owner": "Owner: %s",
-  "jade.thrive.garden_bee_barracks.owner.none": "Owner: none",
+  "config.jade.plugin_thrive.garden_bee_nest": "Garden Bee Nest",
+  "jade.thrive.garden_bee_nest.bees": "Bees: %d/%d",
+  "jade.thrive.garden_bee_nest.nectar": "Nectar: %d/%d",
+  "jade.thrive.garden_bee_nest.honey": "Honey: %d/%d",
+  "jade.thrive.garden_bee_nest.progress": "Brewing: %d%%",
 
-  "jei.thrive.garden_hive": "Garden Hive Brewing"
+  "jei.thrive.garden_bee_nest": "Garden Bee Nest Brewing"
+
 
 }
