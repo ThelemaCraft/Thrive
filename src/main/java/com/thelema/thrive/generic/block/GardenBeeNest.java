@@ -1,7 +1,7 @@
 package com.thelema.thrive.generic.block;
 
 import com.mojang.serialization.MapCodec;
-import com.thelema.thrive.generic.blockentity.GardenBeeBestBlockEntity;
+import com.thelema.thrive.generic.blockentity.GardenBeeNestBlockEntity;
 import com.thelema.thrive.generic.entity.GardenBee;
 import com.thelema.thrive.register.BlockEntityRegister;
 import net.minecraft.Util;
@@ -11,9 +11,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.stats.Stats;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.EnchantmentTags;
 import net.minecraft.util.Mth;
@@ -21,7 +18,6 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.boss.wither.WitherBoss;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.item.PrimedTnt;
@@ -29,7 +25,6 @@ import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.WitherSkull;
 import net.minecraft.world.entity.vehicle.MinecartTNT;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.BlockItemStateProperties;
@@ -47,9 +42,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
-import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.NoteBlockInstrument;
-import net.minecraft.world.level.gameevent.GameEvent;
 import net.minecraft.world.level.material.MapColor;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
@@ -103,7 +96,7 @@ public class GardenBeeNest extends BaseEntityBlock {
     // 比较器改为从 BE 读花蜜和蜂蜜数量
     @Override
     protected int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos) {
-        if (level.getBlockEntity(pos) instanceof GardenBeeBestBlockEntity be) {
+        if (level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be) {
             return be.nectarLevel + be.honeyCount();
         }
         return 0;
@@ -113,9 +106,9 @@ public class GardenBeeNest extends BaseEntityBlock {
     public void playerDestroy(Level level, Player player, BlockPos pos, BlockState state, @Nullable BlockEntity te, ItemStack stack) {
         super.playerDestroy(level, player, pos, state, te, stack);
         // 替换为 GardenHiveBlockEntity
-        if (!level.isClientSide && te instanceof GardenBeeBestBlockEntity beehiveblockentity) {
+        if (!level.isClientSide && te instanceof GardenBeeNestBlockEntity beehiveblockentity) {
             if (!EnchantmentHelper.hasTag(stack, EnchantmentTags.PREVENTS_BEE_SPAWNS_WHEN_MINING)) {
-                beehiveblockentity.emptyAllLivingFromHive(player, state, GardenBeeBestBlockEntity.BeeReleaseStatus.EMERGENCY);
+                beehiveblockentity.emptyAllLivingFromHive(player, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
                 level.updateNeighbourForOutputSignal(pos, this);
                 this.angerNearbyBees(level, pos);
             }
@@ -130,6 +123,9 @@ public class GardenBeeNest extends BaseEntityBlock {
             List<Player> list1 = level.getEntitiesOfClass(Player.class, aabb);
             if (list1.isEmpty()) return;
             for (GardenBee bee : list) {
+                // 【新增过滤】如果这只蜜蜂已经被驯服了，就不激怒它
+                if (bee.isTame()) continue;
+
                 if (bee.getTarget() == null) {
                     Player player = Util.getRandom(list1, level.random);
                     bee.setTarget(player);
@@ -144,7 +140,7 @@ public class GardenBeeNest extends BaseEntityBlock {
 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
-        if (!level.isClientSide && level.getBlockEntity(pos) instanceof GardenBeeBestBlockEntity be) {
+        if (!level.isClientSide && level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be) {
             // 尝试取蜜（消耗玻璃瓶/剪刀）
             if (be.take(player, stack)) {
                 // 取蜜成功后：
@@ -155,7 +151,7 @@ public class GardenBeeNest extends BaseEntityBlock {
                         this.angerNearbyBees(level, pos);
                     }
                     // 将巢内的蜜蜂全部以“紧急状态”放出，它们会直接攻击玩家
-                    be.emptyAllLivingFromHive(player, state, GardenBeeBestBlockEntity.BeeReleaseStatus.EMERGENCY);
+                    be.emptyAllLivingFromHive(player, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
                 }
 
                 // 更新红石信号
@@ -170,13 +166,13 @@ public class GardenBeeNest extends BaseEntityBlock {
 
     private boolean hiveContainsBees(Level level, BlockPos pos) {
         // 替换为 GardenHiveBlockEntity
-        return level.getBlockEntity(pos) instanceof GardenBeeBestBlockEntity be && !be.isEmpty();
+        return level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be && !be.isEmpty();
     }
 
-    public void releaseBeesAndResetHoneyLevel(Level level, BlockState state, BlockPos pos, @Nullable Player player, GardenBeeBestBlockEntity.BeeReleaseStatus beeReleaseStatus) {
+    public void releaseBeesAndResetHoneyLevel(Level level, BlockState state, BlockPos pos, @Nullable Player player, GardenBeeNestBlockEntity.BeeReleaseStatus beeReleaseStatus) {
         this.resetHoneyLevel(level, state, pos);
         // 替换为 GardenHiveBlockEntity
-        if (level.getBlockEntity(pos) instanceof GardenBeeBestBlockEntity be) {
+        if (level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be) {
             be.emptyAllLivingFromHive(player, state, beeReleaseStatus);
         }
     }
@@ -190,7 +186,7 @@ public class GardenBeeNest extends BaseEntityBlock {
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
         // 改为读取方块实体里的蜂蜜数量是否大于 0
-        if (level.getBlockEntity(pos) instanceof GardenBeeBestBlockEntity be && be.getHoneyCount() > 0) {
+        if (level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be && be.getHoneyCount() > 0) {
             for (int i = 0; i < random.nextInt(1) + 1; i++) {
                 this.trySpawnDripParticles(level, pos, state);
             }
@@ -247,19 +243,19 @@ public class GardenBeeNest extends BaseEntityBlock {
     @Nullable
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
-        return new GardenBeeBestBlockEntity(pos, state);
+        return new GardenBeeNestBlockEntity(pos, state);
     }
 
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return level.isClientSide? null : createTickerHelper(type, BlockEntityRegister.GARDEN_BEE_NEST.get(), GardenBeeBestBlockEntity::serverTick);
+        return level.isClientSide? null : createTickerHelper(type, BlockEntityRegister.GARDEN_BEE_NEST.get(), GardenBeeNestBlockEntity::serverTick);
     }
 
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         if (!level.isClientSide && player.isCreative() && level.getGameRules().getBoolean(GameRules.RULE_DOBLOCKDROPS)
-                && level.getBlockEntity(pos) instanceof GardenBeeBestBlockEntity beehiveblockentity) {
+                && level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity beehiveblockentity) {
 
             boolean hasHoney = state.getValue(HAS_HONEY);
             boolean hasBees = !beehiveblockentity.isEmpty();
@@ -287,8 +283,8 @@ public class GardenBeeNest extends BaseEntityBlock {
                 || entity instanceof WitherBoss || entity instanceof MinecartTNT) {
             BlockEntity blockentity = params.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
             // 替换为 GardenHiveBlockEntity
-            if (blockentity instanceof GardenBeeBestBlockEntity beehiveblockentity) {
-                beehiveblockentity.emptyAllLivingFromHive(null, state, GardenBeeBestBlockEntity.BeeReleaseStatus.EMERGENCY);
+            if (blockentity instanceof GardenBeeNestBlockEntity beehiveblockentity) {
+                beehiveblockentity.emptyAllLivingFromHive(null, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
             }
         }
         return super.getDrops(state, params);
@@ -298,8 +294,8 @@ public class GardenBeeNest extends BaseEntityBlock {
     protected BlockState updateShape(BlockState state, Direction facing, BlockState facingState, LevelAccessor level, BlockPos currentPos, BlockPos facingPos) {
         // 替换为 GardenHiveBlockEntity
         if (level.getBlockState(facingPos).getBlock() instanceof FireBlock
-                && level.getBlockEntity(currentPos) instanceof GardenBeeBestBlockEntity beehiveblockentity) {
-            beehiveblockentity.emptyAllLivingFromHive(null, state, GardenBeeBestBlockEntity.BeeReleaseStatus.EMERGENCY);
+                && level.getBlockEntity(currentPos) instanceof GardenBeeNestBlockEntity beehiveblockentity) {
+            beehiveblockentity.emptyAllLivingFromHive(null, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
         }
         return super.updateShape(state, facing, facingState, level, currentPos, facingPos);
     }

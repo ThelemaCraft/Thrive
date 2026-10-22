@@ -26,16 +26,15 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.tags.EntityTypeTags;
 import net.minecraft.util.VisibleForDebug;
-import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.animal.Bee;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BeehiveBlock;
@@ -49,7 +48,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 import java.util.*;
 
-public class GardenBeeBestBlockEntity extends BlockEntity {
+public class GardenBeeNestBlockEntity extends BlockEntity {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String BEES = "bees";
     static final List<String> IGNORED_BEE_TAGS = Arrays.asList(
@@ -64,14 +63,16 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
     public static final int BREW_TIME = 2400; // 2分钟
     public static final int FLOWER_SCAN_RADIUS = 3;
 
-    private final List<GardenBeeBestBlockEntity.BeeData> stored = Lists.newArrayList();
+    private final List<GardenBeeNestBlockEntity.BeeData> stored = Lists.newArrayList();
     @Nullable
     private BlockPos savedFlowerPos;
     public int nectarLevel = 0;
     private final Item[] honey = new Item[5];
     private int progress = 0;
+    public ItemStack potion = ItemStack.EMPTY;
+    public int potionRemaining = 0;
 
-    public GardenBeeBestBlockEntity(BlockPos pos, BlockState blockState) {
+    public GardenBeeNestBlockEntity(BlockPos pos, BlockState blockState) {
         super(BlockEntityRegister.GARDEN_BEE_NEST.get(), pos, blockState);
     }
 
@@ -113,7 +114,7 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
         return this.stored.size() >= MAX_OCCUPANTS;
     }
 
-    public void emptyAllLivingFromHive(@Nullable Player player, BlockState state, GardenBeeBestBlockEntity.BeeReleaseStatus releaseStatus) {
+    public void emptyAllLivingFromHive(@Nullable Player player, BlockState state, GardenBeeNestBlockEntity.BeeReleaseStatus releaseStatus) {
         List<Entity> list = this.releaseAllOccupants(state, releaseStatus);
         if (player != null) {
             for (Entity entity : list) {
@@ -130,7 +131,7 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
         }
     }
 
-    private List<Entity> releaseAllOccupants(BlockState state, GardenBeeBestBlockEntity.BeeReleaseStatus releaseStatus) {
+    private List<Entity> releaseAllOccupants(BlockState state, GardenBeeNestBlockEntity.BeeReleaseStatus releaseStatus) {
         List<Entity> list = Lists.newArrayList();
         this.stored
                 .removeIf(p_330138_ -> releaseOccupant(this.level, this.worldPosition, state, p_330138_.toOccupant(), list, releaseStatus, this.savedFlowerPos));
@@ -166,7 +167,7 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
                 bee.dropOffNectar();
             }
 
-            this.storeBee(GardenBeeBestBlockEntity.Occupant.of(occupant));
+            this.storeBee(GardenBeeNestBlockEntity.Occupant.of(occupant));
             if (this.level != null) {
                 if (occupant instanceof GardenBee bee && bee.hasSavedFlowerPos() && (!this.hasSavedFlowerPos() || this.level.random.nextBoolean())) {
                     this.savedFlowerPos = bee.getSavedFlowerPos();
@@ -180,26 +181,26 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
         }
     }
 
-    public void storeBee(GardenBeeBestBlockEntity.Occupant occupant) {
-        this.stored.add(new GardenBeeBestBlockEntity.BeeData(occupant));
+    public void storeBee(GardenBeeNestBlockEntity.Occupant occupant) {
+        this.stored.add(new GardenBeeNestBlockEntity.BeeData(occupant));
     }
 
     private static boolean releaseOccupant(
             Level level,
             BlockPos pos,
             BlockState state,
-            GardenBeeBestBlockEntity.Occupant occupant,
+            GardenBeeNestBlockEntity.Occupant occupant,
             @Nullable List<Entity> storedInHives,
-            GardenBeeBestBlockEntity.BeeReleaseStatus releaseStatus,
+            GardenBeeNestBlockEntity.BeeReleaseStatus releaseStatus,
             @Nullable BlockPos storedFlowerPos
     ) {
-        if ((level.isNight() || level.isRaining()) && releaseStatus != GardenBeeBestBlockEntity.BeeReleaseStatus.EMERGENCY) {
+        if ((level.isNight() || level.isRaining()) && releaseStatus != GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY) {
             return false;
         } else {
             Direction direction = state.getValue(BeehiveBlock.FACING);
             BlockPos blockpos = pos.relative(direction);
             boolean flag = !level.getBlockState(blockpos).getCollisionShape(level, blockpos).isEmpty();
-            if (flag && releaseStatus != GardenBeeBestBlockEntity.BeeReleaseStatus.EMERGENCY) {
+            if (flag && releaseStatus != GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY) {
                 return false;
             } else {
                 Entity entity = occupant.createEntity(level, pos);
@@ -209,7 +210,7 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
                             bee.setSavedFlowerPos(storedFlowerPos);
                         }
 
-                        if (releaseStatus == GardenBeeBestBlockEntity.BeeReleaseStatus.HONEY_DELIVERED) {
+                        if (releaseStatus == GardenBeeNestBlockEntity.BeeReleaseStatus.HONEY_DELIVERED) {
                             bee.dropOffNectar();
                             if (state.is(BlockTags.BEEHIVES, p_202037_ -> p_202037_.hasProperty(BeehiveBlock.HONEY_LEVEL))) {
                                 int i = getHoneyLevel(state);
@@ -226,6 +227,11 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
 
                         if (storedInHives != null) {
                             storedInHives.add(bee);
+                        }
+
+                        // 【新增】淬毒逻辑：向蜂巢请求药水
+                        if (level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity hive) {
+                            bee.stingerPotionContents = hive.tryConsumePotionFromContainer();
                         }
 
                         float f = entity.getBbWidth();
@@ -251,17 +257,17 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
     }
 
     private static void tickOccupants(
-            Level level, BlockPos pos, BlockState state, List<GardenBeeBestBlockEntity.BeeData> data, @Nullable BlockPos savedFlowerPos
+            Level level, BlockPos pos, BlockState state, List<GardenBeeNestBlockEntity.BeeData> data, @Nullable BlockPos savedFlowerPos
     ) {
         boolean flag = false;
-        Iterator<GardenBeeBestBlockEntity.BeeData> iterator = data.iterator();
+        Iterator<GardenBeeNestBlockEntity.BeeData> iterator = data.iterator();
 
         while (iterator.hasNext()) {
-            GardenBeeBestBlockEntity.BeeData beehiveblockentity$beedata = iterator.next();
+            GardenBeeNestBlockEntity.BeeData beehiveblockentity$beedata = iterator.next();
             if (beehiveblockentity$beedata.tick()) {
-                GardenBeeBestBlockEntity.BeeReleaseStatus beehiveblockentity$beereleasestatus = beehiveblockentity$beedata.hasNectar()
-                        ? GardenBeeBestBlockEntity.BeeReleaseStatus.HONEY_DELIVERED
-                        : GardenBeeBestBlockEntity.BeeReleaseStatus.BEE_RELEASED;
+                GardenBeeNestBlockEntity.BeeReleaseStatus beehiveblockentity$beereleasestatus = beehiveblockentity$beedata.hasNectar()
+                        ? GardenBeeNestBlockEntity.BeeReleaseStatus.HONEY_DELIVERED
+                        : GardenBeeNestBlockEntity.BeeReleaseStatus.BEE_RELEASED;
                 if (releaseOccupant(
                         level, pos, state, beehiveblockentity$beedata.toOccupant(), null, beehiveblockentity$beereleasestatus, savedFlowerPos
                 )) {
@@ -276,7 +282,7 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
         }
     }
 
-    public static void serverTick(Level level, BlockPos pos, BlockState state, GardenBeeBestBlockEntity beehive) {
+    public static void serverTick(Level level, BlockPos pos, BlockState state, GardenBeeNestBlockEntity beehive) {
         // 1. 保持原版的倒计时释放逻辑
         tickOccupants(level, pos, state, beehive.stored, beehive.savedFlowerPos);
 
@@ -477,7 +483,7 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
         super.loadAdditional(tag, registries);
         this.stored.clear();
         if (tag.contains("bees")) {
-            GardenBeeBestBlockEntity.Occupant.LIST_CODEC
+            GardenBeeNestBlockEntity.Occupant.LIST_CODEC
                     .parse(NbtOps.INSTANCE, tag.get("bees"))
                     .resultOrPartial(p -> LOGGER.error("Failed to parse bees: '{}'", p))
                     .ifPresent(l -> l.forEach(this::storeBee));
@@ -493,12 +499,17 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
                 this.honey[i] = BuiltInRegistries.ITEM.get(ResourceLocation.parse(h.getString("s" + i)));
             }
         }
+
+        if (tag.contains("Potion")) {
+            this.potion = ItemStack.parse(registries, tag.getCompound("Potion")).orElse(ItemStack.EMPTY);
+            this.potionRemaining = tag.getInt("PotionRemaining");
+        }
     }
 
     @Override
     protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.saveAdditional(tag, registries);
-        tag.put("bees", GardenBeeBestBlockEntity.Occupant.LIST_CODEC.encodeStart(NbtOps.INSTANCE, this.getBees()).getOrThrow());
+        tag.put("bees", GardenBeeNestBlockEntity.Occupant.LIST_CODEC.encodeStart(NbtOps.INSTANCE, this.getBees()).getOrThrow());
         if (this.hasSavedFlowerPos()) {
             tag.put("flower_pos", NbtUtils.writeBlockPos(this.savedFlowerPos));
         }
@@ -512,6 +523,44 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
             }
         }
         tag.put("Honey", h);
+
+        if (!this.potion.isEmpty()) {
+            tag.put("Potion", this.potion.save(registries));
+            tag.putInt("PotionRemaining", this.potionRemaining);
+        }
+    }
+
+    // 核心逻辑：尝试从上方容器吸取滞留药水
+    private PotionContents tryConsumePotionFromContainer() {
+        if (this.level == null) return null;
+
+        // 如果当前药水剩余次数大于 0，直接用当前的
+        if (this.potionRemaining > 0 && !this.potion.isEmpty()) {
+            this.potionRemaining--;
+            return this.potion.get(DataComponents.POTION_CONTENTS);
+        }
+
+        // 否则，去上方找容器
+        BlockPos abovePos = this.getBlockPos().above();
+        if (this.level.getBlockEntity(abovePos) instanceof Container container) {
+            for (int i = 0; i < container.getContainerSize(); i++) {
+                ItemStack stack = container.getItem(i);
+                if (stack.is(Items.LINGERING_POTION)) {
+                    // 找到了！
+                    PotionContents contents = stack.get(DataComponents.POTION_CONTENTS);
+                    // 扣除物品（保留 1 个空瓶？这里直接消耗掉）
+                    stack.shrink(1);
+
+                    // 记录并重置使用次数
+                    this.potion = new ItemStack(Items.LINGERING_POTION); // 只记录类型
+                    this.potionRemaining = 9; // 一瓶用 9 次
+                    this.setChanged();
+                    this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), 3);
+                    return contents;
+                }
+            }
+        }
+        return null;
     }
 
     @Override
@@ -535,7 +584,7 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
         List<net.minecraft.world.level.block.entity.BeehiveBlockEntity.Occupant> list =
                 componentInput.getOrDefault(DataComponents.BEES, List.of());
         // 转换并存入你的列表
-        list.forEach(occ -> this.storeBee(new GardenBeeBestBlockEntity.Occupant(occ.entityData(), occ.ticksInHive(), occ.minTicksInHive())));
+        list.forEach(occ -> this.storeBee(new GardenBeeNestBlockEntity.Occupant(occ.entityData(), occ.ticksInHive(), occ.minTicksInHive())));
     }
 
     @Override
@@ -555,15 +604,15 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
         tag.remove("bees");
     }
 
-    private List<GardenBeeBestBlockEntity.Occupant> getBees() {
-        return this.stored.stream().map(GardenBeeBestBlockEntity.BeeData::toOccupant).toList();
+    private List<GardenBeeNestBlockEntity.Occupant> getBees() {
+        return this.stored.stream().map(GardenBeeNestBlockEntity.BeeData::toOccupant).toList();
     }
 
     static class BeeData {
-        private final GardenBeeBestBlockEntity.Occupant occupant;
+        private final GardenBeeNestBlockEntity.Occupant occupant;
         private int ticksInHive;
 
-        BeeData(GardenBeeBestBlockEntity.Occupant occupant) {
+        BeeData(GardenBeeNestBlockEntity.Occupant occupant) {
             this.occupant = occupant;
             this.ticksInHive = occupant.ticksInHive();
         }
@@ -572,8 +621,8 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
             return this.ticksInHive++ > this.occupant.minTicksInHive;
         }
 
-        public GardenBeeBestBlockEntity.Occupant toOccupant() {
-            return new GardenBeeBestBlockEntity.Occupant(this.occupant.entityData, this.ticksInHive, this.occupant.minTicksInHive);
+        public GardenBeeNestBlockEntity.Occupant toOccupant() {
+            return new GardenBeeNestBlockEntity.Occupant(this.occupant.entityData, this.ticksInHive, this.occupant.minTicksInHive);
         }
 
         public boolean hasNectar() {
@@ -588,43 +637,43 @@ public class GardenBeeBestBlockEntity extends BlockEntity {
     }
 
     public static record Occupant(CustomData entityData, int ticksInHive, int minTicksInHive) {
-        public static final Codec<GardenBeeBestBlockEntity.Occupant> CODEC = RecordCodecBuilder.create(
+        public static final Codec<GardenBeeNestBlockEntity.Occupant> CODEC = RecordCodecBuilder.create(
                 p_337984_ -> p_337984_.group(
-                                CustomData.CODEC.optionalFieldOf("entity_data", CustomData.EMPTY).forGetter(GardenBeeBestBlockEntity.Occupant::entityData),
-                                Codec.INT.fieldOf("ticks_in_hive").forGetter(GardenBeeBestBlockEntity.Occupant::ticksInHive),
-                                Codec.INT.fieldOf("min_ticks_in_hive").forGetter(GardenBeeBestBlockEntity.Occupant::minTicksInHive)
+                                CustomData.CODEC.optionalFieldOf("entity_data", CustomData.EMPTY).forGetter(GardenBeeNestBlockEntity.Occupant::entityData),
+                                Codec.INT.fieldOf("ticks_in_hive").forGetter(GardenBeeNestBlockEntity.Occupant::ticksInHive),
+                                Codec.INT.fieldOf("min_ticks_in_hive").forGetter(GardenBeeNestBlockEntity.Occupant::minTicksInHive)
                         )
-                        .apply(p_337984_, GardenBeeBestBlockEntity.Occupant::new)
+                        .apply(p_337984_, GardenBeeNestBlockEntity.Occupant::new)
         );
-        public static final Codec<List<GardenBeeBestBlockEntity.Occupant>> LIST_CODEC = CODEC.listOf();
-        public static final StreamCodec<ByteBuf, GardenBeeBestBlockEntity.Occupant> STREAM_CODEC = StreamCodec.composite(
+        public static final Codec<List<GardenBeeNestBlockEntity.Occupant>> LIST_CODEC = CODEC.listOf();
+        public static final StreamCodec<ByteBuf, GardenBeeNestBlockEntity.Occupant> STREAM_CODEC = StreamCodec.composite(
                 CustomData.STREAM_CODEC,
-                GardenBeeBestBlockEntity.Occupant::entityData,
+                GardenBeeNestBlockEntity.Occupant::entityData,
                 ByteBufCodecs.VAR_INT,
-                GardenBeeBestBlockEntity.Occupant::ticksInHive,
+                GardenBeeNestBlockEntity.Occupant::ticksInHive,
                 ByteBufCodecs.VAR_INT,
-                GardenBeeBestBlockEntity.Occupant::minTicksInHive,
-                GardenBeeBestBlockEntity.Occupant::new
+                GardenBeeNestBlockEntity.Occupant::minTicksInHive,
+                GardenBeeNestBlockEntity.Occupant::new
         );
 
-        public static GardenBeeBestBlockEntity.Occupant of(Entity entity) {
+        public static GardenBeeNestBlockEntity.Occupant of(Entity entity) {
             CompoundTag compoundtag = new CompoundTag();
             entity.save(compoundtag);
-            GardenBeeBestBlockEntity.IGNORED_BEE_TAGS.forEach(compoundtag::remove);
+            GardenBeeNestBlockEntity.IGNORED_BEE_TAGS.forEach(compoundtag::remove);
             boolean flag = compoundtag.getBoolean("HasNectar");
-            return new GardenBeeBestBlockEntity.Occupant(CustomData.of(compoundtag), 0, flag ? 2400 : 600);
+            return new GardenBeeNestBlockEntity.Occupant(CustomData.of(compoundtag), 0, flag ? 2400 : 600);
         }
 
-        public static GardenBeeBestBlockEntity.Occupant create(int ticksInHive) {
+        public static GardenBeeNestBlockEntity.Occupant create(int ticksInHive) {
             CompoundTag compoundtag = new CompoundTag();
             compoundtag.putString("id", BuiltInRegistries.ENTITY_TYPE.getKey(EntityRegister.GARDEN_BEE.get()).toString());
-            return new GardenBeeBestBlockEntity.Occupant(CustomData.of(compoundtag), ticksInHive, 600);
+            return new GardenBeeNestBlockEntity.Occupant(CustomData.of(compoundtag), ticksInHive, 600);
         }
 
         @Nullable
         public Entity createEntity(Level level, BlockPos pos) {
             CompoundTag compoundtag = this.entityData.copyTag();
-            GardenBeeBestBlockEntity.IGNORED_BEE_TAGS.forEach(compoundtag::remove);
+            GardenBeeNestBlockEntity.IGNORED_BEE_TAGS.forEach(compoundtag::remove);
             Entity entity = EntityType.loadEntityRecursive(compoundtag, level, p_331097_ -> p_331097_);
             if (entity instanceof GardenBee bee) {
                 entity.setNoGravity(true);

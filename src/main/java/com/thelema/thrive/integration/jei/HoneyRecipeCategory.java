@@ -16,7 +16,7 @@ import net.minecraft.world.item.Items;
 public class HoneyRecipeCategory implements IRecipeCategory<GardenHiveRecipes.Recipe> {
 
     public static final RecipeType<GardenHiveRecipes.Recipe> TYPE =
-            RecipeType.create("thrive", "garden_hive", GardenHiveRecipes.Recipe.class);
+            RecipeType.create("thrive", "garden_bee_nest", GardenHiveRecipes.Recipe.class);
 
     private final IDrawable icon;
     private final IDrawable arrow;

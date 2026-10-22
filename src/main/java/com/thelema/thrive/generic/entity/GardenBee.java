@@ -1,7 +1,7 @@
 package com.thelema.thrive.generic.entity;
 
 import com.google.common.collect.Lists;
-import com.thelema.thrive.generic.blockentity.GardenBeeBestBlockEntity;
+import com.thelema.thrive.generic.blockentity.GardenBeeNestBlockEntity;
 import com.thelema.thrive.register.BlockRegister;
 import com.thelema.thrive.register.EntityRegister;
 import com.thelema.thrive.register.PoiRegister;
@@ -9,6 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.NbtUtils;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -24,7 +25,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.TimeUtil;
 import net.minecraft.util.VisibleForDebug;
 import net.minecraft.util.valueproviders.UniformInt;
-import net.minecraft.world.Difficulty;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.damagesource.DamageSource;
@@ -48,6 +48,7 @@ import net.minecraft.world.entity.animal.FlyingAnimal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -72,6 +73,9 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
     public static final int TICKS_PER_FLAP = Mth.ceil(1.4959966F);
     private static final EntityDataAccessor<Byte> DATA_FLAGS_ID = SynchedEntityData.defineId(GardenBee.class, EntityDataSerializers.BYTE);
     private static final EntityDataAccessor<Integer> DATA_REMAINING_ANGER_TIME = SynchedEntityData.defineId(GardenBee.class, EntityDataSerializers.INT);
+    public static final int ATTACK_INTERVAL = 40; // 2秒一次攻击周期
+    public static final int LUNGE_TICKS = 10;     // 突刺动作持续10 tick
+    private static final int IMPACT_TICK = 5;     // 第5 tick造成伤害
     private static final int FLAG_ROLL = 2;
     private static final int FLAG_HAS_STUNG = 4;
     private static final int FLAG_HAS_NECTAR = 8;
@@ -114,6 +118,11 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
     GardenBee.BeeGoToHiveGoal goToHiveGoal;
     private GardenBee.BeeGoToKnownFlowerGoal goToKnownFlowerGoal;
     private int underWaterTicks;
+    private int attackCooldown;
+    private int lungeTicks;
+    @Nullable
+    private Entity pendingTarget;
+    public PotionContents stingerPotionContents = null;
 
     public GardenBee(EntityType<? extends GardenBee> entityType, Level level) {
         super(entityType, level);
@@ -129,7 +138,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         super.defineSynchedData(builder);
-        builder.define(DATA_FLAGS_ID, (byte)0);
+        builder.define(DATA_FLAGS_ID, (byte) 0);
         builder.define(DATA_REMAINING_ANGER_TIME, 0);
     }
 
@@ -140,6 +149,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
 
     @Override
     protected void registerGoals() {
+        this.goalSelector.addGoal(0, new BeeFleeGoal(this));
         this.goalSelector.addGoal(0, new GardenBee.BeeAttackGoal(this, 1.4F, true));
         this.goalSelector.addGoal(1, new GardenBee.BeeEnterHiveGoal());
         this.goalSelector.addGoal(2, new FollowOwnerGoal(this, 1.25D, 10.0F, 2.0F));
@@ -165,8 +175,16 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
 
     @Override
     public boolean wantsToAttack(LivingEntity target, LivingEntity owner) {
-        // 如果目标是主人，或者目标是主人的其他宠物，就不打
+        // 1. 绝对不打同类
+        if (target instanceof GardenBee) {
+            return false;
+        }
+        // 2. 不打主人的其他宠物
         if (target instanceof TamableAnimal pet && pet.isOwnedBy(owner)) {
+            return false;
+        }
+        // 3. 不打主人
+        if (target == owner) {
             return false;
         }
         return super.wantsToAttack(target, owner);
@@ -239,6 +257,11 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
         compound.putInt("CannotEnterHiveTicks", this.stayOutOfHiveCountdown);
         compound.putInt("CropsGrownSincePollination", this.numCropsGrownSincePollination);
         this.addPersistentAngerSaveData(compound);
+
+        if (this.stingerPotionContents != null) {
+            PotionContents.CODEC.encodeStart(NbtOps.INSTANCE, this.stingerPotionContents)
+                    .result().ifPresent(tag -> compound.put("StingerPotion", tag));
+        }
     }
 
     /**
@@ -255,35 +278,37 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
         this.stayOutOfHiveCountdown = compound.getInt("CannotEnterHiveTicks");
         this.numCropsGrownSincePollination = compound.getInt("CropsGrownSincePollination");
         this.readPersistentAngerSaveData(this.level(), compound);
+        if (compound.contains("StingerPotion")) {
+            PotionContents.CODEC.parse(NbtOps.INSTANCE, compound.get("StingerPotion"))
+                    .result().ifPresent(contents -> this.stingerPotionContents = contents);
+        }
     }
 
     @Override
-    public boolean doHurtTarget(Entity entity) {
+    public boolean doHurtTarget(Entity target) {
+        if (this.attackCooldown > 0) return false;
+        this.pendingTarget = target;
+        this.attackCooldown = ATTACK_INTERVAL;
+        this.lungeTicks = LUNGE_TICKS; // 开始突刺
+        return true;
+    }
+
+    private void actualHurtTarget(Entity target) {
         DamageSource damagesource = this.damageSources().sting(this);
-        boolean flag = entity.hurt(damagesource, (float)((int)this.getAttributeValue(Attributes.ATTACK_DAMAGE)));
+        boolean flag = target.hurt(damagesource, (float) ((int) this.getAttributeValue(Attributes.ATTACK_DAMAGE)));
         if (flag) {
             if (this.level() instanceof ServerLevel serverlevel) {
-                EnchantmentHelper.doPostAttackEffects(serverlevel, entity, damagesource);
+                EnchantmentHelper.doPostAttackEffects(serverlevel, target, damagesource);
             }
+            if (this.stingerPotionContents != null && target instanceof LivingEntity livingTarget) {
+                for (MobEffectInstance effect : this.stingerPotionContents.getAllEffects()) {
 
-            if (entity instanceof LivingEntity livingentity) {
-                livingentity.setStingerCount(livingentity.getStingerCount() + 1);
-                int i = 0;
-                if (this.level().getDifficulty() == Difficulty.NORMAL) {
-                    i = 10;
-                } else if (this.level().getDifficulty() == Difficulty.HARD) {
-                    i = 18;
-                }
-
-                if (i > 0) {
-                    livingentity.addEffect(new MobEffectInstance(MobEffects.POISON, i * 20, 0), this);
+                    livingTarget.addEffect(new MobEffectInstance(effect.getEffect(), effect.getDuration() / 4, effect.getAmplifier()), this);
                 }
             }
-
+            // 只保留音效
             this.playSound(SoundEvents.BEE_STING, 1.0F, 1.0F);
         }
-
-        return flag;
     }
 
     @Override
@@ -318,7 +343,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
         Vec3 vec3 = Vec3.atBottomCenterOf(pos);
         int i = 0;
         BlockPos blockpos = this.blockPosition();
-        int j = (int)vec3.y - blockpos.getY();
+        int j = (int) vec3.y - blockpos.getY();
         if (j > 2) {
             i = 4;
         } else if (j < -2) {
@@ -411,7 +436,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
         }
 
         if (!this.level().isClientSide) {
-            this.updatePersistentAnger((ServerLevel)this.level(), false);
+            this.updatePersistentAnger((ServerLevel) this.level(), false);
         }
     }
 
@@ -424,7 +449,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
             return false;
         } else {
             BlockEntity blockentity = this.level().getBlockEntity(this.hivePos);
-            return blockentity instanceof GardenBeeBestBlockEntity && ((GardenBeeBestBlockEntity)blockentity).isFireNearby();
+            return blockentity instanceof GardenBeeNestBlockEntity && ((GardenBeeNestBlockEntity) blockentity).isFireNearby();
         }
     }
 
@@ -456,7 +481,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
 
     private boolean doesHiveHaveSpace(BlockPos hivePos) {
         BlockEntity blockentity = this.level().getBlockEntity(hivePos);
-        return blockentity instanceof GardenBeeBestBlockEntity ? !((GardenBeeBestBlockEntity)blockentity).isFull() : false;
+        return blockentity instanceof GardenBeeNestBlockEntity ? !((GardenBeeNestBlockEntity) blockentity).isFull() : false;
     }
 
     @VisibleForDebug
@@ -497,21 +522,37 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
     public void aiStep() {
         super.aiStep();
         if (!this.level().isClientSide) {
-            if (this.stayOutOfHiveCountdown > 0) {
-                this.stayOutOfHiveCountdown--;
+            if (this.stayOutOfHiveCountdown > 0) this.stayOutOfHiveCountdown--;
+            if (this.remainingCooldownBeforeLocatingNewHive > 0) this.remainingCooldownBeforeLocatingNewHive--;
+            if (this.remainingCooldownBeforeLocatingNewFlower > 0) this.remainingCooldownBeforeLocatingNewFlower--;
+
+            // 【新增】处理突刺冷却与伤害判定
+            if (this.attackCooldown > 0) this.attackCooldown--;
+            if (this.lungeTicks > 0) this.lungeTicks--;
+
+            if (this.pendingTarget != null && this.lungeTicks == LUNGE_TICKS - IMPACT_TICK) {
+                if (this.pendingTarget.isAlive() && this.pendingTarget.distanceToSqr(this) < 9.0) {
+                    this.actualHurtTarget(this.pendingTarget); // 造成真实伤害
+                }
+                this.pendingTarget = null; // 结算完毕
             }
 
-            if (this.remainingCooldownBeforeLocatingNewHive > 0) {
-                this.remainingCooldownBeforeLocatingNewHive--;
+            // 【修改】完全由 lungeTicks 驱动翻滚，不再受距离限制
+            this.setRolling(this.lungeTicks > 0);
+
+            // 【新增】血量不满且携带花蜜时，消耗花蜜进行自我治疗
+            if (this.getHealth() < this.getMaxHealth() && this.hasNectar()) {
+                this.dropOffNectar(); // 消耗花蜜，同时会重置催熟进度
+                // 给予 20 秒（400 tick）的生命恢复 I 效果
+                this.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 400, 0));
+
+                // 播放一点音效和粒子反馈，告诉玩家它吃蜜了
+                this.playSound(SoundEvents.BEE_POLLINATE, 1.0F, 1.0F);
+                if (this.level() instanceof ServerLevel serverLevel) {
+                    serverLevel.sendParticles(ParticleTypes.HEART, this.getX(), this.getY() + 0.5, this.getZ(), 5, 0.5, 0.5, 0.5, 0.1);
+                }
             }
 
-            if (this.remainingCooldownBeforeLocatingNewFlower > 0) {
-                this.remainingCooldownBeforeLocatingNewFlower--;
-            }
-
-            boolean isAggressive = this.isAngry() || (this.isTame() && this.getTarget() != null);
-            boolean flag = isAggressive && !this.hasStung() && this.getTarget() != null && this.getTarget().distanceToSqr(this) < 4.0;
-            this.setRolling(flag);
             if (this.tickCount % 20 == 0 && !this.isHiveValid()) {
                 this.hivePos = null;
             }
@@ -525,7 +566,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
             return false;
         } else {
             BlockEntity blockentity = this.level().getBlockEntity(this.hivePos);
-            return blockentity instanceof GardenBeeBestBlockEntity;
+            return blockentity instanceof GardenBeeNestBlockEntity;
         }
     }
 
@@ -563,9 +604,9 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
 
     private void setFlag(int flagId, boolean value) {
         if (value) {
-            this.entityData.set(DATA_FLAGS_ID, (byte)(this.entityData.get(DATA_FLAGS_ID) | flagId));
+            this.entityData.set(DATA_FLAGS_ID, (byte) (this.entityData.get(DATA_FLAGS_ID) | flagId));
         } else {
-            this.entityData.set(DATA_FLAGS_ID, (byte)(this.entityData.get(DATA_FLAGS_ID) & ~flagId));
+            this.entityData.set(DATA_FLAGS_ID, (byte) (this.entityData.get(DATA_FLAGS_ID) & ~flagId));
         }
     }
 
@@ -575,10 +616,10 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
 
     public static AttributeSupplier.Builder createAttributes() {
         return Mob.createMobAttributes()
-                .add(Attributes.MAX_HEALTH, 10.0)
+                .add(Attributes.MAX_HEALTH, 20.0)
                 .add(Attributes.FLYING_SPEED, 0.6F)
                 .add(Attributes.MOVEMENT_SPEED, 0.3F)
-                .add(Attributes.ATTACK_DAMAGE, 2.0)
+                .add(Attributes.ATTACK_DAMAGE, 4.0)
                 .add(Attributes.FOLLOW_RANGE, 48.0);
     }
 
@@ -696,11 +737,11 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
 
     @Override
     public Vec3 getLeashOffset() {
-        return new Vec3(0.0, (double)(0.5F * this.getEyeHeight()), (double)(this.getBbWidth() * 0.2F));
+        return new Vec3(0.0, (double) (0.5F * this.getEyeHeight()), (double) (this.getBbWidth() * 0.2F));
     }
 
     boolean closerThan(BlockPos pos, int distance) {
-        return pos.closerThan(this.blockPosition(), (double)distance);
+        return pos.closerThan(this.blockPosition(), (double) distance);
     }
 
     public void setHivePos(BlockPos hivePos) {
@@ -730,12 +771,26 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
 
         @Override
         public boolean canUse() {
-            return super.canUse() && GardenBee.this.isAngry();
+            return super.canUse()
+                    && GardenBee.this.isAngry()
+                    && GardenBee.this.getHealth() > GardenBee.this.getMaxHealth() * 0.3F;
         }
 
         @Override
         public boolean canContinueToUse() {
-            return super.canContinueToUse() && GardenBee.this.isAngry();
+            return super.canContinueToUse()
+                    && GardenBee.this.isAngry()
+                    && GardenBee.this.getHealth() > GardenBee.this.getMaxHealth() * 0.3F;
+        }
+
+        @Override
+        protected boolean canPerformAttack(LivingEntity entity) {
+            // 如果蜜蜂自己的 40 tick 冷却没转好，直接拒绝，原版就不会执行假动作或挥手
+            if (GardenBee.this.attackCooldown > 0) {
+                return false;
+            }
+            // 冷却好了，再交给原版去判断距离和视线
+            return super.canPerformAttack(entity);
         }
     }
 
@@ -761,7 +816,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
         }
 
         private boolean beeCanTarget() {
-            GardenBee bee = (GardenBee)this.mob;
+            GardenBee bee = (GardenBee) this.mob;
             return bee.isAngry() && !bee.hasStung();
         }
     }
@@ -772,7 +827,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
             if (GardenBee.this.hasHive()
                     && GardenBee.this.wantsToEnterHive()
                     && GardenBee.this.hivePos.closerToCenterThan(GardenBee.this.position(), 2.0)
-                    && GardenBee.this.level().getBlockEntity(GardenBee.this.hivePos) instanceof GardenBeeBestBlockEntity beehiveblockentity) {
+                    && GardenBee.this.level().getBlockEntity(GardenBee.this.hivePos) instanceof GardenBeeNestBlockEntity beehiveblockentity) {
                 if (!beehiveblockentity.isFull()) {
                     return true;
                 }
@@ -790,7 +845,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
 
         @Override
         public void start() {
-            if (GardenBee.this.level().getBlockEntity(GardenBee.this.hivePos) instanceof GardenBeeBestBlockEntity beehiveblockentity) {
+            if (GardenBee.this.level().getBlockEntity(GardenBee.this.hivePos) instanceof GardenBeeNestBlockEntity beehiveblockentity) {
                 beehiveblockentity.addOccupant(GardenBee.this);
             }
         }
@@ -873,7 +928,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
 
         private boolean pathfindDirectlyTowards(BlockPos pos) {
             GardenBee.this.navigation.setMaxVisitedNodesMultiplier(10.0F);
-            GardenBee.this.navigation.moveTo((double)pos.getX(), (double)pos.getY(), (double)pos.getZ(), 2, 1.0);
+            GardenBee.this.navigation.moveTo((double) pos.getX(), (double) pos.getY(), (double) pos.getZ(), 2, 1.0);
             return GardenBee.this.navigation.getPath() != null && GardenBee.this.navigation.getPath().canReach();
         }
 
@@ -999,7 +1054,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
                     BlockState blockstate1 = null;
                     if (blockstate.is(BlockTags.BEE_GROWABLES)) {
                         if (block instanceof CropBlock) {
-                            CropBlock cropblock = (CropBlock)block;
+                            CropBlock cropblock = (CropBlock) block;
                             if (!cropblock.isMaxAge(blockstate)) {
                                 blockstate1 = cropblock.getStateForAge(cropblock.getAge(blockstate) + 1);
                             }
@@ -1014,7 +1069,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
                                 blockstate1 = blockstate.setValue(SweetBerryBushBlock.AGE, Integer.valueOf(j + 1));
                             }
                         } else if (blockstate.is(Blocks.CAVE_VINES) || blockstate.is(Blocks.CAVE_VINES_PLANT)) {
-                            ((BonemealableBlock)blockstate.getBlock()).performBonemeal((ServerLevel) GardenBee.this.level(), GardenBee.this.random, blockpos, blockstate);
+                            ((BonemealableBlock) blockstate.getBlock()).performBonemeal((ServerLevel) GardenBee.this.level(), GardenBee.this.random, blockpos, blockstate);
                         }
 
                         if (blockstate1 != null) {
@@ -1040,6 +1095,10 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
 
         @Override
         protected void alertOther(Mob mob, LivingEntity target) {
+            // 【新增过滤】如果目标是同类，或者目标是主人的宠物，绝对不报警
+            if (target instanceof GardenBee || (this.mob instanceof TamableAnimal pet && pet.isOwnedBy(target))) {
+                return;
+            }
             if (mob instanceof GardenBee && this.mob.hasLineOfSight(target)) {
                 mob.setTarget(target);
             }
@@ -1240,7 +1299,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
                         if (flag) {
                             boolean flag2 = GardenBee.this.random.nextInt(25) == 0;
                             if (flag2) {
-                                this.hoverPos = new Vec3(vec3.x() + (double)this.getOffset(), vec3.y(), vec3.z() + (double)this.getOffset());
+                                this.hoverPos = new Vec3(vec3.x() + (double) this.getOffset(), vec3.y(), vec3.z() + (double) this.getOffset());
                                 GardenBee.this.navigation.stop();
                             } else {
                                 flag1 = false;
@@ -1279,8 +1338,8 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
             BlockPos blockpos = GardenBee.this.blockPosition();
             BlockPos.MutableBlockPos blockpos$mutableblockpos = new BlockPos.MutableBlockPos();
 
-            for (int i = 0; (double)i <= distance; i = i > 0 ? -i : 1 - i) {
-                for (int j = 0; (double)j < distance; j++) {
+            for (int i = 0; (double) i <= distance; i = i > 0 ? -i : 1 - i) {
+                for (int j = 0; (double) j < distance; j++) {
                     for (int k = 0; k <= j; k = k > 0 ? -k : 1 - k) {
                         for (int l = k < j && k > -j ? j : 0; l <= j; l = l > 0 ? -l : 1 - l) {
                             blockpos$mutableblockpos.setWithOffset(blockpos, k, i - 1, l);
@@ -1335,6 +1394,30 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
             int i = 8;
             Vec3 vec32 = HoverRandomPos.getPos(GardenBee.this, 8, 7, vec3.x, vec3.z, (float) (Math.PI / 2), 3, 1);
             return vec32 != null ? vec32 : AirAndWaterRandomPos.getPos(GardenBee.this, 8, 4, -2, vec3.x, vec3.z, (float) (Math.PI / 2));
+        }
+    }
+
+    class BeeFleeGoal extends AvoidEntityGoal<Mob> {
+        public BeeFleeGoal(GardenBee bee) {
+            super(bee, Mob.class, living -> living instanceof Mob m && m.getTarget() == bee, 16.0F, 1.6D, 2.0D, EntitySelector.NO_CREATIVE_OR_SPECTATOR::test);
+        }
+
+        @Override
+        public boolean canUse() {
+            // 只有血量低于 30% 才允许启动逃跑
+            if (GardenBee.this.getHealth() > GardenBee.this.getMaxHealth() * 0.3F) {
+                return false;
+            }
+            return super.canUse();
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            // 逃跑过程中如果血回上来了，或者怪物追不上了，就停下
+            if (GardenBee.this.getHealth() > GardenBee.this.getMaxHealth() * 0.6F) {
+                return false;
+            }
+            return super.canContinueToUse();
         }
     }
 }

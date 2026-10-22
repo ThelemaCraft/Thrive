@@ -24,6 +24,17 @@ public class PotionRegister {
     public static final DeferredHolder<Potion, Potion> SUPER_LONG_SLOW_FALLING =
             longP("super_long_slow_falling", "slow_falling", MobEffects.SLOW_FALLING, 4800);
 
+    // ============ 牛奶 ============
+    public static final DeferredHolder<Potion, Potion> MILK =
+            POTION.register("milk", () -> new Potion("milk",
+                    new MobEffectInstance(EffectRegister.MILK, 900)));
+    public static final DeferredHolder<Potion, Potion> LONG_MILK =
+            POTION.register("long_milk", () -> new Potion("milk",
+                    new MobEffectInstance(EffectRegister.MILK, 1800)));
+    public static final DeferredHolder<Potion, Potion> SUPER_LONG_MILK =
+            POTION.register("super_long_milk", () -> new Potion("milk",
+                    new MobEffectInstance(EffectRegister.MILK, 7200)));
+
     // ============ 迅捷 ============
     public static final DeferredHolder<Potion, Potion> SUPER_LONG_SWIFTNESS =
             longP("super_long_swiftness", "swiftness", MobEffects.MOVEMENT_SPEED, 9600);
@@ -165,6 +176,10 @@ public class PotionRegister {
     @SubscribeEvent
     public static void onRegisterBrewingRecipes(RegisterBrewingRecipesEvent event) {
         var b = event.getBuilder();
+
+        // 牛奶：红石延长 → 牡丹蜂蜜超长效
+        b.addMix(MILK, Items.REDSTONE, LONG_MILK);
+        b.addMix(LONG_MILK, ItemRegister.PEONY_HONEY.get(), SUPER_LONG_MILK);
 
         // 1 蒲公英 → 缓降
         b.addMix(Potions.LONG_SLOW_FALLING, ItemRegister.DANDELION_HONEY.get(), SUPER_LONG_SLOW_FALLING);

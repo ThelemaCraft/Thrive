@@ -17,7 +17,6 @@
   "item.thrive.lantern_berry_juice_bucket": "灯笼果汁桶",
   "item.thrive.biome_twig": "群系新枝",
   "item.thrive.garden_bee_spawn_egg": "花园蜜蜂刷怪蛋",
-  "item.thrive.garden_soldier_bee_spawn_egg": "花园士兵蜜蜂刷怪蛋",
   "item.thrive.dandelion_honey": "蒲公英蜂蜜",
   "item.thrive.poppy_honey": "虞美人蜂蜜",
   "item.thrive.blue_orchid_honey": "兰花蜂蜜",
@@ -52,6 +51,11 @@
   "item.minecraft.lingering_potion.effect.wither": "滞留型凋零药水",
   "item.minecraft.tipped_arrow.effect.wither": "凋零之箭",
 
+  "item.minecraft.potion.effect.milk": "牛奶药水",
+  "item.minecraft.splash_potion.effect.milk": "喷溅型牛奶药水",
+  "item.minecraft.lingering_potion.effect.milk": "滞留型牛奶药水",
+  "item.minecraft.tipped_arrow.effect.milk": "牛奶之箭",
+
   "item.minecraft.potion.effect.levitation": "漂浮药水",
   "item.minecraft.splash_potion.effect.levitation": "喷溅型漂浮药水",
   "item.minecraft.lingering_potion.effect.levitation": "滞留型漂浮药水",
@@ -69,8 +73,8 @@
   "entity.thrive.primed_lantern_berry": "点燃的灯笼果",
   "entity.thrive.lantern_berry_creeper": "灯笼果苦力怕",
   "entity.thrive.garden_bee": "花园蜜蜂",
-  "entity.thrive.garden_bee.patrol": "花园蜜蜂：原地巡逻模式",
-  "entity.thrive.garden_bee.follow": "花园蜜蜂：跟随模式",
+  "entity.thrive.garden_bee.patrol": "花园蜜蜂：自由行为",
+  "entity.thrive.garden_bee.follow": "花园蜜蜂：跟随",
   "entity.thrive.garden_pillager": "花园掠夺者",
   "entity.thrive.garden_witch": "花园女巫",
 

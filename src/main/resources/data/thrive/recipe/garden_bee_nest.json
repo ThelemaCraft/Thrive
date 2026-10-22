@@ -13,11 +13,11 @@
       "item": "minecraft:honeycomb"
     },
     "F": {
-      "tag": "minecraft:flowers"
+      "tag": "thrive:honey"
     }
   },
   "result": {
-    "id": "thrive:garden_bee_barracks",
+    "id": "thrive:garden_bee_nest",
     "count": 1
   }
 }

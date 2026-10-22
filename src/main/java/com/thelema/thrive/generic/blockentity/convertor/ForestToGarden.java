@@ -2,7 +2,7 @@ package com.thelema.thrive.generic.blockentity.convertor;
 
 import com.thelema.thrive.generic.block.GardenBeeNest;
 import com.thelema.thrive.generic.blockentity.BiomeCoreBlockEntity;
-import com.thelema.thrive.generic.blockentity.GardenBeeBestBlockEntity;
+import com.thelema.thrive.generic.blockentity.GardenBeeNestBlockEntity;
 import com.thelema.thrive.register.BlockRegister;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -241,14 +241,14 @@ public class ForestToGarden implements Convertor {
                     .setValue(GardenBeeNest.FACING, facing));
             markDirty(be, hivePos);
 
-            if (level.getBlockEntity(hivePos) instanceof GardenBeeBestBlockEntity hive) {
+            if (level.getBlockEntity(hivePos) instanceof GardenBeeNestBlockEntity hive) {
                 // 生成 1 到 2 只蜜蜂
                 int numBees = 1 + random.nextInt(2);
                 for (int i = 0; i < numBees; i++) {
                     // 随机生成它们已经在里面待了多少 tick（原版范围通常是 0~599）
                     int ticksInHive = random.nextInt(599);
                     // 使用你自定义实体里的 create 方法生成占位数据并塞进去
-                    hive.storeBee(GardenBeeBestBlockEntity.Occupant.create(ticksInHive));
+                    hive.storeBee(GardenBeeNestBlockEntity.Occupant.create(ticksInHive));
                 }
                 hive.setChanged(); // 标记方块实体已更新，确保保存到存档
             }

@@ -2,7 +2,7 @@
   "type": "minecraft:block",
   "pools": [{
     "rolls": 1,
-    "entries": [{ "type": "minecraft:item", "name": "thrive:garden_hive" }],
+    "entries": [{ "type": "minecraft:item", "name": "thrive:garden_bee_nest" }],
     "conditions": [{ "condition": "minecraft:survives_explosion" }]
   }]
 }

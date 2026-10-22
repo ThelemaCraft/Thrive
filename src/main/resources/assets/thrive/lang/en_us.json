@@ -21,7 +21,6 @@
   "item.thrive.fresh_grass_cake": "Fresh Grass Cake",
   "item.thrive.biome_twig": "Biome Twig",
   "item.thrive.garden_bee_spawn_egg": "Garden Bee Spawn Egg",
-  "item.thrive.garden_soldier_bee_spawn_egg": "Garden Soldier Bee Spawn Egg",
   "item.thrive.dandelion_honey": "Dandelion Honey",
   "item.thrive.poppy_honey": "Poppy Honey",
   "item.thrive.blue_orchid_honey": "Blue Orchid Honey",
@@ -56,6 +55,11 @@
   "item.minecraft.lingering_potion.effect.wither": "Lingering Potion of Wither",
   "item.minecraft.tipped_arrow.effect.wither": "Arrow of Wither",
 
+  "item.minecraft.potion.effect.milk": "Potion of Milk",
+  "item.minecraft.splash_potion.effect.milk": "Splash Potion of Milk",
+  "item.minecraft.lingering_potion.effect.milk": "Lingering Potion of Milk",
+  "item.minecraft.tipped_arrow.effect.milk": "Arrow of Milk",
+
   "item.minecraft.potion.effect.levitation": "Potion of Levitation",
   "item.minecraft.splash_potion.effect.levitation": "Splash Potion of Levitation",
   "item.minecraft.lingering_potion.effect.levitation": "Lingering Potion of Levitation",
@@ -77,8 +81,8 @@
   "entity.thrive.grass_land_sheep.title": "Grass Devourer",
   "entity.thrive.sun": "Sun",
   "entity.thrive.garden_bee": "Garden Bee",
-  "entity.thrive.garden_bee.patrol": "Garden Bee: Idle Patrol Mode",
-  "entity.thrive.garden_bee.follow": "Garden Bee: Follow Mode",
+  "entity.thrive.garden_bee.patrol": "Garden Bee: Free Roam",
+  "entity.thrive.garden_bee.follow": "Garden Bee: Follow",
   "entity.thrive.garden_pillager": "Garden Pillager",
   "entity.thrive.garden_witch": "Garden Witch",
 

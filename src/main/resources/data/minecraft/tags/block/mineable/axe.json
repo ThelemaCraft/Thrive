@@ -2,7 +2,6 @@
   "replace": false,
   "values": [
     "thrive:moss_frame",
-    "thrive:garden_hive",
-    "thrive:garden_bee_barracks"
+    "thrive:garden_bee_nest"
   ]
 }

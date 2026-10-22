@@ -1,7 +1,7 @@
 package com.thelema.thrive.integration.jade;
 
 import com.thelema.thrive.generic.block.GardenBeeNest;
-import com.thelema.thrive.generic.blockentity.GardenBeeBestBlockEntity;
+import com.thelema.thrive.generic.blockentity.GardenBeeNestBlockEntity;
 import com.thelema.thrive.integration.jade.component.GardenBeeNestComponentProvider;
 import com.thelema.thrive.integration.jade.data.GardenBeeNestDataProvider;
 import snownee.jade.api.IWailaClientRegistration;
@@ -14,7 +14,7 @@ public class ThriveJadePlugin implements IWailaPlugin {
 
     @Override
     public void register(IWailaCommonRegistration registration) {
-        registration.registerBlockDataProvider(GardenBeeNestDataProvider.INSTANCE, GardenBeeBestBlockEntity.class);
+        registration.registerBlockDataProvider(GardenBeeNestDataProvider.INSTANCE, GardenBeeNestBlockEntity.class);
     }
 
     @Override
