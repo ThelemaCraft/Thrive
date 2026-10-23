@@ -41,6 +41,7 @@ public class BlockRegister {
     public static final DeferredHolder<Block, Block> BIOME_CORE;
     public static final DeferredHolder<Block, Block> RAMPANT_MOSS;
     public static final DeferredHolder<Block, Block> GARDEN_BEE_NEST;
+    public static final DeferredHolder<Block, Block> BIOME_SAPLING;
 
     static {
 
@@ -67,6 +68,15 @@ public class BlockRegister {
 
         GARDEN_BEE_NEST = registerWithItem("garden_bee_nest", GardenBeeNest::new);
 
+        // 树苗的特性：无碰撞、一碰就碎、植物音效、允许随机刻
+        BIOME_SAPLING = registerWithItem("biome_sapling", () -> new BiomeSapling(
+                BlockBehaviour.Properties.of()
+                        .mapColor(MapColor.PLANT)
+                        .noCollission()
+                        .randomTicks()
+                        .instabreak()
+                        .sound(SoundType.GRASS)
+        ));
 
     }
 

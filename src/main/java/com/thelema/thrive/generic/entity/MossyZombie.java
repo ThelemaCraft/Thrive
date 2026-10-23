@@ -179,8 +179,8 @@ public class MossyZombie extends Zombie {
     // ==================== 经验 ====================
 
     public int computeXp() {
-        int xp = 20 + armorXp() * 2 + mainHandXp() * 2;
-        if (getOffhandItem().is(FluidRegister.LANTERN_BERRY_JUICE_BUCKET.get())) xp *= 2;
+        int xp = 20 + armorXp() * 2 + mainHandXp() * 4;
+        if (getOffhandItem().is(FluidRegister.LANTERN_BERRY_JUICE_BUCKET.get())) xp *= 3;
         return xp;
     }
 

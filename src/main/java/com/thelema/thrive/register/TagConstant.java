@@ -6,7 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 
-public class TagRegister {
+public class TagConstant {
 
     public static final TagKey<Item> HONEY = TagKey.create(
             Registries.ITEM,

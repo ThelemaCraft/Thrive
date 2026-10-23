@@ -1,0 +1,6 @@
+{
+  "variants": {
+    "stage=0": { "model": "thrive:block/biome_sapling" },
+    "stage=1": { "model": "thrive:block/biome_sapling" }
+  }
+}

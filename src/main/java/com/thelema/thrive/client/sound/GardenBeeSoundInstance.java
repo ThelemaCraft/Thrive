@@ -1,39 +1,30 @@
 package com.thelema.thrive.client.sound;
 
+import com.thelema.thrive.generic.entity.GardenBee;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
-import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.Mob;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.api.distmarker.OnlyIn;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.function.BooleanSupplier;
-
-/**
- * 花园蜂的循环飞行音效，逻辑照搬原版 BeeSoundInstance。
- * 传入 angry 判定时，会在愤怒状态变化时无缝切换到 aggressive 版本。
- */
+/** 花园蜂的循环飞行音效，逻辑照搬原版 BeeSoundInstance，随愤怒状态切换音轨。 */
 @OnlyIn(Dist.CLIENT)
 public class GardenBeeSoundInstance extends AbstractTickableSoundInstance {
 
-    private final Mob bee;
+    private final GardenBee bee;
     private final float minPitch;
     private final float maxPitch;
     private final boolean aggressive;
-    @Nullable private final BooleanSupplier angry;
     private boolean hasSwitched;
 
-    public GardenBeeSoundInstance(Mob bee, boolean aggressive, @Nullable BooleanSupplier angry) {
-        super(aggressive ? SoundEvents.BEE_LOOP_AGGRESSIVE : SoundEvents.BEE_LOOP,
+    public GardenBeeSoundInstance(GardenBee bee) {
+        super(bee.isAngry() ? SoundEvents.BEE_LOOP_AGGRESSIVE : SoundEvents.BEE_LOOP,
                 SoundSource.NEUTRAL, SoundInstance.createUnseededRandom());
         this.bee = bee;
-        this.aggressive = aggressive;
-        this.angry = angry;
+        this.aggressive = bee.isAngry();
         this.x = bee.getX();
         this.y = bee.getY();
         this.z = bee.getZ();
@@ -51,14 +42,9 @@ public class GardenBeeSoundInstance extends AbstractTickableSoundInstance {
             return;
         }
 
-        // 愤怒状态变了：排队播放另一版循环，本实例停止
-        if (this.angry != null && !this.hasSwitched) {
-            boolean nowAngry = this.angry.getAsBoolean();
-            if (nowAngry != this.aggressive) {
-                Minecraft.getInstance().getSoundManager().queueTickingSound(
-                        new GardenBeeSoundInstance(this.bee, nowAngry, this.angry));
-                this.hasSwitched = true;
-            }
+        if (!this.hasSwitched && this.bee.isAngry() != this.aggressive) {
+            Minecraft.getInstance().getSoundManager().queueTickingSound(new GardenBeeSoundInstance(this.bee));
+            this.hasSwitched = true;
         }
         if (this.hasSwitched) {
             this.stop();
@@ -88,4 +74,5 @@ public class GardenBeeSoundInstance extends AbstractTickableSoundInstance {
     public boolean canPlaySound() {
         return !this.bee.isSilent();
     }
+
 }

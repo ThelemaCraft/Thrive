@@ -16,7 +16,7 @@ public class BlockEntityRenderRegister {
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(BlockEntityRegister.SUN_BERRY.get(), SunBerryBlockEntityRenderer::new);
-        event.registerBlockEntityRenderer(BlockEntityRegister.THRIVE_CORE.get(), BiomeCoreBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(BlockEntityRegister.BIOME_CORE.get(), BiomeCoreBlockEntityRenderer::new);
     }
 
 }

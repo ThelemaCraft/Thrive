@@ -87,6 +87,8 @@ public class FlameExplosionParticle extends TextureSheetParticle {
 }
 ```
 
+- 粒子负责切换粒子的png，改变粒子的大小，移动粒子位置。
+
 ## 四、客户端注册 Provider
 
 `client/register/ParticleProviderRegister.java`：
@@ -104,8 +106,8 @@ public class ParticleProviderRegister {
     }
 }
 ```
-
-必须在 `value = Dist.CLIENT` 下——`ParticleProvider` 是纯客户端概念。
+- registerSpriteSet，将声明的粒子类型与客户端的实际粒子类绑定。
+- 必须在 `value = Dist.CLIENT` 下——`ParticleProvider` 是纯客户端概念。
 
 ## 五、粒子 JSON
 
@@ -134,7 +136,7 @@ public class ParticleProviderRegister {
 }
 ```
 
-**原版纹理可以直接引用**——写 `minecraft:explosion_0` 就能用原版 jar 内的爆炸序列帧，不需要复制到自己的包下。
+- **图片推进**：粒子文件指向来多个材质，它会因setSpriteFromAge的触发而切换。setSpriteFromAge保证在粒子的生命周期内，完整且恰好地依次播放完这些材质。
 
 **自己的纹理**放在 `assets/thrive/textures/particle/xxx.png`，JSON 里写 `thrive:xxx`。
 

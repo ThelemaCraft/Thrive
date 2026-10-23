@@ -2,15 +2,26 @@ package com.thelema.thrive.register;
 
 import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.generic.entity.*;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.*;
+import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.AABB;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityAttributeCreationEvent;
+import net.neoforged.neoforge.event.entity.RegisterSpawnPlacementsEvent;
+import net.neoforged.neoforge.event.entity.living.MobSpawnEvent;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
+
+import java.util.Set;
 
 @EventBusSubscriber
 public class EntityRegister {
@@ -18,7 +29,7 @@ public class EntityRegister {
     static final DeferredRegister<EntityType<?>> ENTITIES =
             DeferredRegister.create(Registries.ENTITY_TYPE, ThriveMod.MOD_ID);
 
-    public static void register(IEventBus bus){
+    public static void register(IEventBus bus) {
         ENTITIES.register(bus);
     }
 
@@ -31,7 +42,6 @@ public class EntityRegister {
     public static final DeferredHolder<EntityType<?>, EntityType<PrimedSunBerry>> PRIMED_SUN_BERRY;
     public static final DeferredHolder<EntityType<?>, EntityType<Sun>> SUN;
     public static final DeferredHolder<EntityType<?>, EntityType<GardenWitch>> GARDEN_WITCH;
-
 
     static {
         MOSSY_ZOMBIE = ENTITIES.register("mossy_zombie", () -> EntityType.Builder.of(MossyZombie::new, MobCategory.MONSTER)
@@ -87,7 +97,6 @@ public class EntityRegister {
                 .build("garden_witch"));
     }
 
-
     // ========== 事件注册 ==========
     @SubscribeEvent
     public static void registerAttributes(EntityAttributeCreationEvent event) {
@@ -97,6 +106,53 @@ public class EntityRegister {
         event.put(GARDEN_BEE.get(), GardenBee.createAttributes().build());
         event.put(GARDEN_PILLAGER.get(), GardenPillager.createAttributes().build());
         event.put(GARDEN_WITCH.get(), GardenWitch.createAttributes().build());
-
     }
+
+    @SubscribeEvent
+    public static void registerSpawnPlacements(RegisterSpawnPlacementsEvent event) {
+        event.register(MOSSY_ZOMBIE.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Monster::checkMonsterSpawnRules, RegisterSpawnPlacementsEvent.Operation.REPLACE);
+        event.register(LANTERN_BERRY_CREEPER.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Monster::checkMonsterSpawnRules, RegisterSpawnPlacementsEvent.Operation.REPLACE);
+        event.register(GARDEN_PILLAGER.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Monster::checkMonsterSpawnRules, RegisterSpawnPlacementsEvent.Operation.REPLACE);
+        event.register(GARDEN_WITCH.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Monster::checkMonsterSpawnRules, RegisterSpawnPlacementsEvent.Operation.REPLACE);
+    }
+
+    // 允许生成在
+    @SubscribeEvent(priority = EventPriority.LOW)
+    public static void allowSpawnOn(MobSpawnEvent.PositionCheck event) {
+        Mob m = event.getEntity();
+        if (!isOurMob(m.getType())) return;
+        if (event.getSpawnType() != MobSpawnType.NATURAL) return;
+        if (event.getResult() != MobSpawnEvent.PositionCheck.Result.DEFAULT) return;
+        AABB box = m.getBoundingBox();
+        boolean pass = false;
+        for (BlockPos p : BlockPos.betweenClosed(
+                BlockPos.containing(box.minX, box.minY, box.minZ),
+                BlockPos.containing(box.maxX, box.maxY, box.maxZ))) {
+            BlockState s = event.getLevel().getBlockState(p);
+            if (s.isAir()) continue;
+            if (!PASSABLE.contains(s.getBlock())) {
+                pass = true;
+                break;
+            }
+        }
+        if (!pass) {
+            event.setResult(MobSpawnEvent.PositionCheck.Result.SUCCEED);
+        }
+    }
+
+    /** 注册完成前不能调用 DeferredHolder#get()，所以延迟到事件里再比较。 */
+    private static boolean isOurMob(EntityType<?> type) {
+        return type == MOSSY_ZOMBIE.get()
+                || type == LANTERN_BERRY_CREEPER.get()
+                || type == GARDEN_PILLAGER.get()
+                || type == GARDEN_WITCH.get()
+                || type == GRASS_LAND_SHEEP.get()
+                || type == GARDEN_BEE.get();
+    }
+
+    private static final Set<Block> PASSABLE = Set.of(
+            Blocks.SHORT_GRASS, Blocks.TALL_GRASS, Blocks.FERN, Blocks.LARGE_FERN,
+            Blocks.MOSS_CARPET,
+            Blocks.AZALEA, Blocks.FLOWERING_AZALEA
+    );
 }

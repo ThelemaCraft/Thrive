@@ -25,7 +25,7 @@ public class GardenBeeModel<T extends GardenBee> extends AgeableListModel<T> {
             ResourceLocation.fromNamespaceAndPath(ThriveMod.MOD_ID, "garden_bee"), "main");
 
     /** 翅膀扇动角速度（度/tick）。原版 Bee 值。 */
-    private static final float FLAP_DEGREES_PER_TICK = 120.32113F;
+    private static final float FLAP_DEGREES_PER_TICK = GardenBee.FLAP_DEGREES_PER_TICK;
 
     private static final float BEE_Y_BASE = 19.0F;
     private static final String BONE = "bone";
@@ -42,7 +42,6 @@ public class GardenBeeModel<T extends GardenBee> extends AgeableListModel<T> {
     private final ModelPart frontLeg;
     private final ModelPart midLeg;
     private final ModelPart backLeg;
-    private final ModelPart stinger;
     private final ModelPart leftAntenna;
     private final ModelPart rightAntenna;
     private float rollAmount;
@@ -51,7 +50,6 @@ public class GardenBeeModel<T extends GardenBee> extends AgeableListModel<T> {
         super(false, 24.0F, 0.0F);
         this.bone = root.getChild(BONE);
         ModelPart body = this.bone.getChild("body");
-        this.stinger = body.getChild(STINGER);
         this.leftAntenna = body.getChild(LEFT_ANTENNA);
         this.rightAntenna = body.getChild(RIGHT_ANTENNA);
         this.rightWing = this.bone.getChild("right_wing");

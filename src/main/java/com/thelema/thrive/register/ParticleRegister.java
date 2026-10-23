@@ -17,7 +17,17 @@ public class ParticleRegister {
     public static final DeferredHolder<ParticleType<?>, SimpleParticleType> FLAME_EXPLOSION =
             PARTICLE_TYPES.register("flame_explosion", () -> new SimpleParticleType(true));
 
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> JUICE_SPLASH =
+            PARTICLE_TYPES.register("colored_splash", () -> new SimpleParticleType(true));
+
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> JUICE_BUBBLE =
+            PARTICLE_TYPES.register("juice_bubble", () -> new SimpleParticleType(true));
+
+    public static final DeferredHolder<ParticleType<?>, SimpleParticleType> JUICE_EXPLOSION_EMITTER =
+            PARTICLE_TYPES.register("juice_explosion_emitter", () -> new SimpleParticleType(true));
+
     public static void register(IEventBus bus) {
         PARTICLE_TYPES.register(bus);
     }
+
 }

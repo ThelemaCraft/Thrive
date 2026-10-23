@@ -25,7 +25,6 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.util.VisibleForDebug;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.Entity;
@@ -38,8 +37,10 @@ import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BeehiveBlock;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.block.FireBlock;
+import net.minecraft.world.level.block.entity.BeehiveBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
@@ -48,9 +49,18 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 import java.util.*;
 
+/**
+ * 花园蜂巢方块实体。
+ * 核心职责：
+ * 1. 管理巢内蜜蜂（添加入巢、倒计时释放、紧急驱逐）。
+ * 2. 酿蜜逻辑（花蜜积累、配方匹配、成品产出）。
+ * 3. 滞留药水淬毒（从上方容器抽取药水，分发给出巢的蜜蜂）。
+ * 4. 数据持久化（蜜蜂数据、酿蜜进度、药水剩余）。
+ */
 public class GardenBeeNestBlockEntity extends BlockEntity {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final String BEES = "bees";
+    // 蜜蜂存档时需要清理的无用标签（避免数据臃肿或冲突）
     static final List<String> IGNORED_BEE_TAGS = Arrays.asList(
             "Air", "ArmorDropChances", "ArmorItems", "Brain", "CanPickUpLoot", "DeathTime",
             "FallDistance", "FallFlying", "Fire", "HandDropChances", "HandItems", "HurtByTimestamp",
@@ -59,31 +69,27 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
             "TicksSincePollination", "CropsGrownSincePollination", "hive_pos", "Passengers", "leash", "UUID"
     );
     public static final int MAX_OCCUPANTS = 3;
+    public static final int MAX_NECTAR = 5;
     public static final int MAX_HONEY = 5;
-    public static final int BREW_TIME = 2400; // 2分钟
-    public static final int FLOWER_SCAN_RADIUS = 3;
+    public static final int BREW_TIME = 2400; // 酿造一瓶蜂蜜需要 2 分钟
 
     private final List<GardenBeeNestBlockEntity.BeeData> stored = Lists.newArrayList();
-    @Nullable
-    private BlockPos savedFlowerPos;
+    @Nullable private BlockPos savedFlowerPos;
+    
+    /** 花蜜量，达到 MAX_NECTAR 时开始酿造 */
     public int nectarLevel = 0;
-    private final Item[] honey = new Item[5];
+    /** 成品蜂蜜数组（存有物品即代表有蜜） */
+    private final Item[] honey = new Item[MAX_HONEY];
+    /** 酿造进度 */
     private int progress = 0;
-    public ItemStack potion = ItemStack.EMPTY;
-    public int potionRemaining = 0;
+    
+    /** 滞留药水的效果缓存 */
+    @Nullable private PotionContents potion;
+    /** 药水剩余使用次数（一瓶可用 9 次） */
+    private int potionRemaining = 0;
 
     public GardenBeeNestBlockEntity(BlockPos pos, BlockState blockState) {
         super(BlockEntityRegister.GARDEN_BEE_NEST.get(), pos, blockState);
-    }
-
-    public int getHoneyCount() {
-        int count = 0;
-        for (Item item : this.honey) {
-            if (item != null) {
-                count++;
-            }
-        }
-        return count;
     }
 
     public int getProgress() {
@@ -114,6 +120,72 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
         return this.stored.size() >= MAX_OCCUPANTS;
     }
 
+    /** 巢内所有蜜蜂都属于该玩家（空巢不算）。 */
+    public boolean isOwnedBy(Player player) {
+        if (this.stored.isEmpty()) return false;
+        for (BeeData data : this.stored) {
+            if (!data.isOwnedBy(player)) return false;
+        }
+        return true;
+    }
+
+    /** 巢内是否有该玩家的蜜蜂。 */
+    public boolean hasOwnedBee(Player player) {
+        for (BeeData data : this.stored) {
+            if (data.isOwnedBy(player)) return true;
+        }
+        return false;
+    }
+
+    /** 该玩家在巢内的蜜蜂是否全部处于“自由行动”。 */
+    public boolean allOwnedSitting(Player player) {
+        boolean found = false;
+        for (BeeData data : this.stored) {
+            if (!data.isOwnedBy(player)) continue;
+            found = true;
+            if (!data.isSitting()) return false;
+        }
+        return found;
+    }
+
+    /** 只修改该玩家的蜜蜂的 Sitting 状态，不影响别人的蜂。 */
+    public void setOwnedSitting(Player player, boolean sitting) {
+        boolean changed = false;
+        for (BeeData data : this.stored) {
+            if (!data.isOwnedBy(player)) continue;
+            data.setSitting(sitting);
+            changed = true;
+        }
+        if (changed) this.setChanged();
+    }
+
+    /** 把该玩家在巢内的蜜蜂全部放出来（用于“跟随”模式）。 */
+    public int releaseOwnedBees(Player player) {
+        if (this.level == null) return 0;
+
+        List<Entity> released = Lists.newArrayList();
+        this.stored.removeIf(data -> data.isOwnedBy(player)
+                && releaseOccupant(this.level, this.worldPosition, this.getBlockState(),
+                        data.toOccupant(), released, BeeReleaseStatus.EMERGENCY, this.savedFlowerPos));
+
+        for (Entity entity : released) {
+            if (entity instanceof GardenBee bee) {
+                bee.setOrderedToSit(false);
+                bee.setStayOutOfHiveCountdown(400);
+                bee.setTarget(null);
+            }
+        }
+        if (!released.isEmpty()) {
+            this.setChanged();
+            this.level.sendBlockUpdated(this.worldPosition, this.getBlockState(), this.getBlockState(), 3);
+        }
+        return released.size();
+    }
+
+    /**
+     * 释放蜂巢内的所有蜜蜂。
+     * @param player 激怒目标（如果非空且没被烟熏，蜜蜂会攻击该玩家）
+     */
     public void emptyAllLivingFromHive(@Nullable Player player, BlockState state, GardenBeeNestBlockEntity.BeeReleaseStatus releaseStatus) {
         List<Entity> list = this.releaseAllOccupants(state, releaseStatus);
         if (player != null) {
@@ -133,12 +205,11 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
 
     private List<Entity> releaseAllOccupants(BlockState state, GardenBeeNestBlockEntity.BeeReleaseStatus releaseStatus) {
         List<Entity> list = Lists.newArrayList();
-        this.stored
-                .removeIf(p_330138_ -> releaseOccupant(this.level, this.worldPosition, state, p_330138_.toOccupant(), list, releaseStatus, this.savedFlowerPos));
+        // 通过迭代器移除符合条件的蜜蜂
+        this.stored.removeIf(data -> releaseOccupant(this.level, this.worldPosition, state, data.toOccupant(), list, releaseStatus, this.savedFlowerPos));
         if (!list.isEmpty()) {
             super.setChanged();
         }
-
         return list;
     }
 
@@ -147,28 +218,29 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
         return this.stored.size();
     }
 
-    public static int getHoneyLevel(BlockState state) {
-        return state.getValue(BeehiveBlock.HONEY_LEVEL);
-    }
-
     @VisibleForDebug
     public boolean isSedated() {
         return this.level != null && CampfireBlock.isSmokeyPos(this.level, this.getBlockPos());
     }
 
+    /**
+     * 添加蜜蜂入巢。
+     * 如果蜜蜂带有花蜜，则增加 nectarLevel。
+     */
     public void addOccupant(Entity occupant) {
         if (this.stored.size() < MAX_OCCUPANTS) {
             occupant.stopRiding();
             occupant.ejectPassengers();
 
-            // 蜜蜂带回了花蜜，增加普通字段
-            if (occupant instanceof GardenBee bee && bee.hasNectar() && this.nectarLevel < 5) {
+            if (occupant instanceof GardenBee bee && bee.hasNectar() && this.nectarLevel < MAX_NECTAR) {
                 this.nectarLevel++;
                 bee.dropOffNectar();
             }
 
             this.storeBee(GardenBeeNestBlockEntity.Occupant.of(occupant));
+            
             if (this.level != null) {
+                // 有 50% 概率用蜜蜂记忆里的花位置更新巢的记忆
                 if (occupant instanceof GardenBee bee && bee.hasSavedFlowerPos() && (!this.hasSavedFlowerPos() || this.level.random.nextBoolean())) {
                     this.savedFlowerPos = bee.getSavedFlowerPos();
                 }
@@ -185,116 +257,112 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
         this.stored.add(new GardenBeeNestBlockEntity.BeeData(occupant));
     }
 
+    /**
+     * 将蜜蜂实体生成到世界中。
+     * @return 如果成功生成返回 true（调用方将从存储列表中移除它）
+     */
     private static boolean releaseOccupant(
-            Level level,
-            BlockPos pos,
-            BlockState state,
-            GardenBeeNestBlockEntity.Occupant occupant,
-            @Nullable List<Entity> storedInHives,
-            GardenBeeNestBlockEntity.BeeReleaseStatus releaseStatus,
+            Level level, BlockPos pos, BlockState state, GardenBeeNestBlockEntity.Occupant occupant,
+            @Nullable List<Entity> storedInHives, GardenBeeNestBlockEntity.BeeReleaseStatus releaseStatus,
             @Nullable BlockPos storedFlowerPos
     ) {
+        // 如果是夜晚或下雨，且不是紧急释放（如被破坏），则延迟出巢
         if ((level.isNight() || level.isRaining()) && releaseStatus != GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY) {
             return false;
-        } else {
-            Direction direction = state.getValue(BeehiveBlock.FACING);
-            BlockPos blockpos = pos.relative(direction);
-            boolean flag = !level.getBlockState(blockpos).getCollisionShape(level, blockpos).isEmpty();
-            if (flag && releaseStatus != GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY) {
-                return false;
-            } else {
-                Entity entity = occupant.createEntity(level, pos);
-                if (entity != null) {
-                    if (entity instanceof GardenBee bee) {
-                        if (storedFlowerPos != null && !bee.hasSavedFlowerPos() && level.random.nextFloat() < 0.9F) {
-                            bee.setSavedFlowerPos(storedFlowerPos);
-                        }
-
-                        if (releaseStatus == GardenBeeNestBlockEntity.BeeReleaseStatus.HONEY_DELIVERED) {
-                            bee.dropOffNectar();
-                            if (state.is(BlockTags.BEEHIVES, p_202037_ -> p_202037_.hasProperty(BeehiveBlock.HONEY_LEVEL))) {
-                                int i = getHoneyLevel(state);
-                                if (i < 5) {
-                                    int j = level.random.nextInt(100) == 0 ? 2 : 1;
-                                    if (i + j > 5) {
-                                        j--;
-                                    }
-
-                                    level.setBlockAndUpdate(pos, state.setValue(BeehiveBlock.HONEY_LEVEL, Integer.valueOf(i + j)));
-                                }
-                            }
-                        }
-
-                        if (storedInHives != null) {
-                            storedInHives.add(bee);
-                        }
-
-                        // 【新增】淬毒逻辑：向蜂巢请求药水
-                        if (level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity hive) {
-                            bee.stingerPotionContents = hive.tryConsumePotionFromContainer();
-                        }
-
-                        float f = entity.getBbWidth();
-                        double d3 = flag ? 0.0 : 0.55 + (double) (f / 2.0F);
-                        double d0 = (double) pos.getX() + 0.5 + d3 * (double) direction.getStepX();
-                        double d1 = (double) pos.getY() + 0.5 - (double) (entity.getBbHeight() / 2.0F);
-                        double d2 = (double) pos.getZ() + 0.5 + d3 * (double) direction.getStepZ();
-                        entity.moveTo(d0, d1, d2, entity.getYRot(), entity.getXRot());
-                    }
-
-                    level.playSound(null, pos, SoundEvents.BEEHIVE_EXIT, SoundSource.BLOCKS, 1.0F, 1.0F);
-                    level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(entity, level.getBlockState(pos)));
-                    return level.addFreshEntity(entity);
-                } else {
-                    return false;
-                }
-            }
         }
+
+        Direction direction = state.getValue(BeehiveBlock.FACING);
+        BlockPos blockpos = pos.relative(direction);
+        boolean isBlocked = !level.getBlockState(blockpos).getCollisionShape(level, blockpos).isEmpty();
+        
+        // 如果出口被堵住且不是紧急释放，则无法出巢
+        if (isBlocked && releaseStatus != GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY) {
+            return false;
+        }
+
+        Entity entity = occupant.createEntity(level, pos);
+        if (entity instanceof GardenBee bee) {
+            // 传递花的位置（90% 概率）
+            if (storedFlowerPos != null && !bee.hasSavedFlowerPos() && level.random.nextFloat() < 0.9F) {
+                bee.setSavedFlowerPos(storedFlowerPos);
+            }
+
+            // 如果是采完蜜回来被放出的，清理它的花蜜状态
+            if (releaseStatus == GardenBeeNestBlockEntity.BeeReleaseStatus.HONEY_DELIVERED) {
+                bee.dropOffNectar();
+            }
+
+            if (storedInHives != null) {
+                storedInHives.add(bee);
+            }
+
+            // 淬毒逻辑：如果蜂巢有药水，就喂给这只刚出巢的蜜蜂
+            if (level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity hive) {
+                bee.stingerPotionContents = hive.tryConsumePotionFromContainer();
+            }
+
+            // 计算生成坐标（如果是堵住的，就生成在正中心，否则生成在出口前方）
+            float f = entity.getBbWidth();
+            double d3 = isBlocked ? 0.0 : 0.55 + (double) (f / 2.0F);
+            double d0 = (double) pos.getX() + 0.5 + d3 * (double) direction.getStepX();
+            double d1 = (double) pos.getY() + 0.5 - (double) (entity.getBbHeight() / 2.0F);
+            double d2 = (double) pos.getZ() + 0.5 + d3 * (double) direction.getStepZ();
+            entity.moveTo(d0, d1, d2, entity.getYRot(), entity.getXRot());
+
+            level.playSound(null, pos, SoundEvents.BEEHIVE_EXIT, SoundSource.BLOCKS, 1.0F, 1.0F);
+            level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(entity, level.getBlockState(pos)));
+            return level.addFreshEntity(entity);
+        }
+        return false;
     }
 
     private boolean hasSavedFlowerPos() {
         return this.savedFlowerPos != null;
     }
 
+    /**
+     * 倒计时处理：如果巢内蜜蜂待够了时间，就将其释放。
+     */
     private static void tickOccupants(
             Level level, BlockPos pos, BlockState state, List<GardenBeeNestBlockEntity.BeeData> data, @Nullable BlockPos savedFlowerPos
     ) {
-        boolean flag = false;
+        boolean changed = false;
         Iterator<GardenBeeNestBlockEntity.BeeData> iterator = data.iterator();
 
         while (iterator.hasNext()) {
-            GardenBeeNestBlockEntity.BeeData beehiveblockentity$beedata = iterator.next();
-            if (beehiveblockentity$beedata.tick()) {
-                GardenBeeNestBlockEntity.BeeReleaseStatus beehiveblockentity$beereleasestatus = beehiveblockentity$beedata.hasNectar()
+            GardenBeeNestBlockEntity.BeeData beeData = iterator.next();
+            if (beeData.tick()) {
+                GardenBeeNestBlockEntity.BeeReleaseStatus status = beeData.hasNectar()
                         ? GardenBeeNestBlockEntity.BeeReleaseStatus.HONEY_DELIVERED
                         : GardenBeeNestBlockEntity.BeeReleaseStatus.BEE_RELEASED;
-                if (releaseOccupant(
-                        level, pos, state, beehiveblockentity$beedata.toOccupant(), null, beehiveblockentity$beereleasestatus, savedFlowerPos
-                )) {
-                    flag = true;
+                
+                if (releaseOccupant(level, pos, state, beeData.toOccupant(), null, status, savedFlowerPos)) {
+                    changed = true;
                     iterator.remove();
                 }
             }
         }
 
-        if (flag) {
+        if (changed) {
             setChanged(level, pos, state);
         }
     }
 
+    /**
+     * 蜂巢的服务端 Tick 逻辑。
+     */
     public static void serverTick(Level level, BlockPos pos, BlockState state, GardenBeeNestBlockEntity beehive) {
-        // 1. 保持原版的倒计时释放逻辑
+        // 1. 更新蜜蜂倒计时，到时间就放出
         tickOccupants(level, pos, state, beehive.stored, beehive.savedFlowerPos);
 
-        // 2. 酿蜜逻辑
-
-        if (beehive.nectarLevel >= 5 && beehive.getOccupantCount() > 0 && beehive.honeyCount() < MAX_HONEY) {
+        // 2. 酿蜜进度更新
+        if (beehive.nectarLevel >= MAX_NECTAR && beehive.getOccupantCount() > 0 && beehive.honeyCount() < MAX_HONEY) {
             beehive.progress++;
             if (beehive.progress >= BREW_TIME) {
                 beehive.progress = 0;
                 beehive.finishBrew(level, pos, state);
             }
-            // 每 20 tick 同步一次进度条（如果客户端需要渲染进度的话）
+            // 每秒钟同步一次进度（供客户端/Jade显示）
             if (beehive.progress % 20 == 0) {
                 level.sendBlockUpdated(pos, state, state, 3);
             }
@@ -305,17 +373,19 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
             }
         }
 
-        // 3. 环境音
+        // 3. 播放环境音效
         if (!beehive.stored.isEmpty() && level.getRandom().nextDouble() < 0.005) {
             level.playSound(null, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, SoundEvents.BEEHIVE_WORK, SoundSource.BLOCKS, 1.0F, 1.0F);
         }
     }
 
-    // 酿蜜完成
+    /**
+     * 酿蜜完成：根据附近的花提取配方产出物品，消耗花蜜，并放出一只蜜蜂。
+     */
     private void finishBrew(Level level, BlockPos pos, BlockState state) {
-        List<Flower> flowers = collectFlowers(level, pos);
-        Item result = pickHoney(flowers);
+        Item result = GardenHiveRecipes.pickHoney(level, pos);
 
+        // 将产物存入空槽位
         for (int i = 0; i < MAX_HONEY; i++) {
             if (honey[i] == null) {
                 honey[i] = result;
@@ -324,9 +394,9 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
         }
 
         this.nectarLevel = 0; // 清空花蜜
-        releaseOneBee(level, pos);
+        releaseOneBee(level, pos); // 消耗并释放一只蜜蜂
 
-        // 【关键】如果有第一瓶蜂蜜产出，改变方块外观
+        // 如果之前没有蜂蜜，现在产出了，就更新方块视觉状态
         if (honeyCount() > 0 && !state.getValue(GardenBeeNest.HAS_HONEY)) {
             level.setBlock(pos, state.setValue(GardenBeeNest.HAS_HONEY, true), 3);
         }
@@ -337,83 +407,18 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
 
     private void releaseOneBee(Level level, BlockPos pos) {
         if (this.stored.isEmpty()) return;
-        this.stored.remove(0); // 消耗一只
+        this.stored.remove(0);
         level.playSound(null, pos, SoundEvents.BEEHIVE_EXIT, SoundSource.BLOCKS, 1.0F, 1.0F);
 
         GardenBee bee = EntityRegister.GARDEN_BEE.get().create(level);
         if (bee != null) {
             bee.setHivePos(pos);
-            bee.setStayOutOfHiveCountdown(400);
+            bee.setStayOutOfHiveCountdown(400); // 出巢后 20 秒内不准进巢
             bee.moveTo(pos.getX() + 0.5, pos.getY() + 1.2, pos.getZ() + 0.5, level.random.nextFloat() * 360F, 0F);
             level.addFreshEntity(bee);
         }
         setChanged();
     }
-
-    private Item pickHoney(List<Flower> flowers) {
-        Item best = null;
-        double bestWorstDist = Double.MAX_VALUE;
-
-        for (GardenHiveRecipes.Recipe recipe : GardenHiveRecipes.RECIPE) {
-            Map<Item, Integer> need = new HashMap<>();
-            need.merge(recipe.a(), 1, Integer::sum);
-            need.merge(recipe.b(), 1, Integer::sum);
-            need.merge(recipe.c(), 1, Integer::sum);
-
-            double worstDist = 0.0;
-            for (Flower flower : flowers) {
-                int left = need.getOrDefault(flower.item(), 0);
-                if (left <= 0) continue;
-
-                need.put(flower.item(), left - 1);
-                worstDist = Math.max(worstDist, flower.dist());
-                if (need.values().stream().allMatch(v -> v == 0)) break;
-            }
-
-            boolean complete = need.values().stream().allMatch(v -> v == 0);
-            if (!complete) continue;
-
-            if (worstDist < bestWorstDist) {
-                bestWorstDist = worstDist;
-                best = recipe.honey();
-            }
-        }
-        return best != null ? best : Items.HONEY_BOTTLE;
-    }
-
-    private static List<Flower> collectFlowers(Level level, BlockPos pos) {
-        List<Flower> found = new ArrayList<>();
-        BlockPos.MutableBlockPos p = new BlockPos.MutableBlockPos();
-
-        for (int dx = -FLOWER_SCAN_RADIUS; dx <= FLOWER_SCAN_RADIUS; dx++)
-            for (int dy = -FLOWER_SCAN_RADIUS; dy <= FLOWER_SCAN_RADIUS; dy++)
-                for (int dz = -FLOWER_SCAN_RADIUS; dz <= FLOWER_SCAN_RADIUS; dz++) {
-                    p.set(pos.getX() + dx, pos.getY() + dy, pos.getZ() + dz);
-                    if (!level.isLoaded(p)) continue;
-
-                    BlockState state = level.getBlockState(p);
-                    Item flower = null;
-
-                    if (state.getBlock() instanceof net.minecraft.world.level.block.FlowerPotBlock pot) {
-                        var content = pot.getPotted();
-                        if (content != net.minecraft.world.level.block.Blocks.AIR) flower = content.asItem();
-                    } else if (state.is(BlockTags.FLOWERS) && !state.is(BlockTags.LEAVES)) {
-                        if (state.hasProperty(net.minecraft.world.level.block.DoublePlantBlock.HALF)
-                                && state.getValue(net.minecraft.world.level.block.DoublePlantBlock.HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER) {
-                            continue;
-                        }
-                        flower = state.getBlock().asItem();
-                    }
-
-                    if (flower == null || flower == Items.AIR) continue;
-                    found.add(new Flower(p.distSqr(pos), flower));
-                }
-
-        found.sort(Comparator.comparingDouble(Flower::dist));
-        return found;
-    }
-
-    private record Flower(double dist, Item item) {}
 
     public int honeyCount() {
         int count = 0;
@@ -421,61 +426,50 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
         return count;
     }
 
+    /**
+     * 玩家取蜜逻辑。
+     * @return 如果成功取走一瓶蜂蜜返回 true。
+     */
     public boolean take(Player player, ItemStack held) {
-        // 1. 玻璃瓶取蜜
-        if (held.is(Items.GLASS_BOTTLE)) {
-            for (int i = 0; i < MAX_HONEY; i++) {
-                if (honey[i] != null) {
-                    ItemStack result = new ItemStack(honey[i]);
-                    honey[i] = null;
+        boolean bottle = held.is(Items.GLASS_BOTTLE);
+        boolean shears = held.is(Items.SHEARS);
+        if (!bottle && !shears) return false;
 
-                    if (!player.getAbilities().instabuild) held.shrink(1);
-                    if (!player.getInventory().add(result)) player.drop(result, false);
+        for (int i = 0; i < MAX_HONEY; i++) {
+            if (this.honey[i] == null) continue;
 
-                    player.level().playSound(null, worldPosition, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0F, 1.0F);
+            Item produced = this.honey[i];
+            this.honey[i] = null;
 
-                    // 如果蜂蜜被取空了，更新方块状态
-                    if (honeyCount() == 0) {
-                        BlockState state = this.getBlockState();
-                        if (state.hasProperty(GardenBeeNest.HAS_HONEY)) {
-                            player.level().setBlock(worldPosition, state.setValue(GardenBeeNest.HAS_HONEY, false), 3);
-                        }
-                    }
-
-                    setChanged();
-                    player.level().sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
-                    return true;
+            if (bottle) {
+                if (!player.getAbilities().instabuild) held.shrink(1);
+                this.give(player, new ItemStack(produced));
+                player.level().playSound(null, this.worldPosition, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0F, 1.0F);
+            } else {
+                this.give(player, new ItemStack(Items.HONEYCOMB));
+                player.level().playSound(null, this.worldPosition, SoundEvents.BEEHIVE_SHEAR, SoundSource.BLOCKS, 1.0F, 1.0F);
+                if (!player.getAbilities().instabuild) {
+                    held.hurtAndBreak(1, player, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
                 }
             }
-        }
-        // 2. 剪刀剪蜜脾
-        else if (held.is(Items.SHEARS)) {
-            for (int i = 0; i < MAX_HONEY; i++) {
-                if (honey[i] != null) {
-                    honey[i] = null;
-                    ItemStack combs = new ItemStack(Items.HONEYCOMB, 1);
-                    if (!player.getInventory().add(combs)) player.drop(combs, false);
 
-                    player.level().playSound(null, worldPosition, SoundEvents.BEEHIVE_SHEAR, SoundSource.BLOCKS, 1.0F, 1.0F);
-                    if (!player.getAbilities().instabuild) {
-                        held.hurtAndBreak(1, player, net.minecraft.world.entity.EquipmentSlot.MAINHAND);
-                    }
-
-                    // 如果蜂蜜被取空了，更新方块状态
-                    if (honeyCount() == 0) {
-                        BlockState state = this.getBlockState();
-                        if (state.hasProperty(GardenBeeNest.HAS_HONEY)) {
-                            player.level().setBlock(worldPosition, state.setValue(GardenBeeNest.HAS_HONEY, false), 3);
-                        }
-                    }
-
-                    setChanged();
-                    player.level().sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
-                    return true;
+            // 如果取空了，关闭方块的“有蜂蜜”状态
+            if (this.honeyCount() == 0) {
+                BlockState state = this.getBlockState();
+                if (state.hasProperty(GardenBeeNest.HAS_HONEY)) {
+                    player.level().setBlock(this.worldPosition, state.setValue(GardenBeeNest.HAS_HONEY, false), 3);
                 }
             }
+
+            this.setChanged();
+            player.level().sendBlockUpdated(this.worldPosition, this.getBlockState(), this.getBlockState(), 3);
+            return true;
         }
         return false;
+    }
+
+    private void give(Player player, ItemStack stack) {
+        if (!player.getInventory().add(stack)) player.drop(stack, false);
     }
 
     @Override
@@ -490,7 +484,6 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
         }
         this.savedFlowerPos = NbtUtils.readBlockPos(tag, "flower_pos").orElse(null);
 
-        // 读取蜂蜜进度和产物
         this.progress = tag.getInt("Progress");
         Arrays.fill(this.honey, null);
         CompoundTag h = tag.getCompound("Honey");
@@ -501,7 +494,8 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
         }
 
         if (tag.contains("Potion")) {
-            this.potion = ItemStack.parse(registries, tag.getCompound("Potion")).orElse(ItemStack.EMPTY);
+            this.potion = PotionContents.CODEC.parse(NbtOps.INSTANCE, tag.get("Potion"))
+                    .result().orElse(null);
             this.potionRemaining = tag.getInt("PotionRemaining");
         }
     }
@@ -514,7 +508,6 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
             tag.put("flower_pos", NbtUtils.writeBlockPos(this.savedFlowerPos));
         }
 
-        // 保存蜂蜜进度和产物
         tag.putInt("Progress", this.progress);
         CompoundTag h = new CompoundTag();
         for (int i = 0; i < MAX_HONEY; i++) {
@@ -524,41 +517,45 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
         }
         tag.put("Honey", h);
 
-        if (!this.potion.isEmpty()) {
-            tag.put("Potion", this.potion.save(registries));
+        if (this.potion != null) {
+            PotionContents.CODEC.encodeStart(NbtOps.INSTANCE, this.potion)
+                    .result().ifPresent(data -> tag.put("Potion", data));
             tag.putInt("PotionRemaining", this.potionRemaining);
         }
     }
 
-    // 核心逻辑：尝试从上方容器吸取滞留药水
+    /**
+     * 尝试从上方容器提取滞留药水。如果当前药水还有剩余次数，优先使用。
+     */
+    @Nullable
     private PotionContents tryConsumePotionFromContainer() {
         if (this.level == null) return null;
 
-        // 如果当前药水剩余次数大于 0，直接用当前的
-        if (this.potionRemaining > 0 && !this.potion.isEmpty()) {
+        // 1. 如果当前药水还有剩余次数，直接扣除并返回效果
+        if (this.potionRemaining > 0 && this.potion != null) {
             this.potionRemaining--;
-            return this.potion.get(DataComponents.POTION_CONTENTS);
+            return this.potion;
         }
 
-        // 否则，去上方找容器
-        BlockPos abovePos = this.getBlockPos().above();
-        if (this.level.getBlockEntity(abovePos) instanceof Container container) {
-            for (int i = 0; i < container.getContainerSize(); i++) {
-                ItemStack stack = container.getItem(i);
-                if (stack.is(Items.LINGERING_POTION)) {
-                    // 找到了！
-                    PotionContents contents = stack.get(DataComponents.POTION_CONTENTS);
-                    // 扣除物品（保留 1 个空瓶？这里直接消耗掉）
-                    stack.shrink(1);
+        // 2. 上方没有容器则返回
+        BlockPos above = this.getBlockPos().above();
+        if (!(this.level.getBlockEntity(above) instanceof Container container)) return null;
 
-                    // 记录并重置使用次数
-                    this.potion = new ItemStack(Items.LINGERING_POTION); // 只记录类型
-                    this.potionRemaining = 9; // 一瓶用 9 次
-                    this.setChanged();
-                    this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), 3);
-                    return contents;
-                }
-            }
+        // 3. 遍历容器寻找滞留药水
+        for (int i = 0; i < container.getContainerSize(); i++) {
+            ItemStack stack = container.getItem(i);
+            if (!stack.is(Items.LINGERING_POTION)) continue;
+
+            PotionContents contents = stack.get(DataComponents.POTION_CONTENTS);
+            if (contents == null) continue;
+
+            // 找到药水，消耗物品并重置使用次数
+            stack.shrink(1);
+            this.potion = contents;
+            this.potionRemaining = 9;
+            this.setChanged();
+            this.level.sendBlockUpdated(this.getBlockPos(), this.getBlockState(), this.getBlockState(), 3);
+            return contents;
         }
         return null;
     }
@@ -580,21 +577,20 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
     protected void applyImplicitComponents(BlockEntity.DataComponentInput componentInput) {
         super.applyImplicitComponents(componentInput);
         this.stored.clear();
-        // 读取原版数据
-        List<net.minecraft.world.level.block.entity.BeehiveBlockEntity.Occupant> list =
-                componentInput.getOrDefault(DataComponents.BEES, List.of());
-        // 转换并存入你的列表
-        list.forEach(occ -> this.storeBee(new GardenBeeNestBlockEntity.Occupant(occ.entityData(), occ.ticksInHive(), occ.minTicksInHive())));
+        // 从物品 Component 中读取蜜蜂数据
+        List<BeehiveBlockEntity.Occupant> list = componentInput.getOrDefault(DataComponents.BEES, List.of());
+        list.forEach(occ -> this.storeBee(new GardenBeeNestBlockEntity.Occupant(
+                occ.entityData(), occ.ticksInHive(), occ.minTicksInHive())));
     }
 
     @Override
     protected void collectImplicitComponents(DataComponentMap.Builder components) {
         super.collectImplicitComponents(components);
-        // ✅ 转换为你需要的原版类型
-        List<net.minecraft.world.level.block.entity.BeehiveBlockEntity.Occupant> vanillaList =
-                this.getBees().stream()
-                        .map(occ -> new net.minecraft.world.level.block.entity.BeehiveBlockEntity.Occupant(occ.entityData(), occ.ticksInHive(), occ.minTicksInHive()))
-                        .toList();
+        // 将蜜蜂数据转化为原版的 BeehiveBlockEntity.Occupant 格式存入 Component
+        List<BeehiveBlockEntity.Occupant> vanillaList = this.getBees().stream()
+                .map(occ -> new BeehiveBlockEntity.Occupant(
+                        occ.entityData(), occ.ticksInHive(), occ.minTicksInHive()))
+                .toList();
         components.set(DataComponents.BEES, vanillaList);
     }
 
@@ -608,8 +604,11 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
         return this.stored.stream().map(GardenBeeNestBlockEntity.BeeData::toOccupant).toList();
     }
 
+    /**
+     * 内部记录蜜蜂时间的包装类。
+     */
     static class BeeData {
-        private final GardenBeeNestBlockEntity.Occupant occupant;
+        private GardenBeeNestBlockEntity.Occupant occupant;
         private int ticksInHive;
 
         BeeData(GardenBeeNestBlockEntity.Occupant occupant) {
@@ -617,6 +616,7 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
             this.ticksInHive = occupant.ticksInHive();
         }
 
+        /** @return 如果蜜蜂已经待够了时间，返回 true */
         public boolean tick() {
             return this.ticksInHive++ > this.occupant.minTicksInHive;
         }
@@ -628,14 +628,35 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
         public boolean hasNectar() {
             return this.occupant.entityData.getUnsafe().getBoolean("HasNectar");
         }
+
+        public boolean isOwnedBy(Player player) {
+            CompoundTag tag = this.occupant.entityData().copyTag();
+            return tag.hasUUID("Owner") && tag.getUUID("Owner").equals(player.getUUID());
+        }
+
+        public boolean isSitting() {
+            return this.occupant.entityData().copyTag().getBoolean("Sitting");
+        }
+
+        public void setSitting(boolean sitting) {
+            CompoundTag tag = this.occupant.entityData().copyTag();
+            if (sitting) tag.putBoolean("Sitting", true);
+            else tag.remove("Sitting");
+            this.occupant = new GardenBeeNestBlockEntity.Occupant(
+                    CustomData.of(tag), this.occupant.ticksInHive(), this.occupant.minTicksInHive());
+        }
     }
 
     public static enum BeeReleaseStatus {
-        HONEY_DELIVERED,
-        BEE_RELEASED,
-        EMERGENCY;
+        HONEY_DELIVERED, // 带回花蜜后出巢
+        BEE_RELEASED,    // 待够时间自然出巢
+        EMERGENCY;       // 被破坏或起火紧急放出
     }
 
+    /**
+     * 蜜蜂数据的不可变记录（Record）。
+     * 包含实体 NBT、在巢内时间、最短停留时间。
+     */
     public static record Occupant(CustomData entityData, int ticksInHive, int minTicksInHive) {
         public static final Codec<GardenBeeNestBlockEntity.Occupant> CODEC = RecordCodecBuilder.create(
                 p_337984_ -> p_337984_.group(
@@ -665,9 +686,9 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
         }
 
         public static GardenBeeNestBlockEntity.Occupant create(int ticksInHive) {
-            CompoundTag compoundtag = new CompoundTag();
-            compoundtag.putString("id", BuiltInRegistries.ENTITY_TYPE.getKey(EntityRegister.GARDEN_BEE.get()).toString());
-            return new GardenBeeNestBlockEntity.Occupant(CustomData.of(compoundtag), ticksInHive, 600);
+            CompoundTag tag = new CompoundTag();
+            tag.putString("id", BuiltInRegistries.ENTITY_TYPE.getKey(EntityRegister.GARDEN_BEE.get()).toString());
+            return new GardenBeeNestBlockEntity.Occupant(CustomData.of(tag), ticksInHive, 600);
         }
 
         @Nullable
@@ -685,6 +706,7 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
             }
         }
 
+        /** 根据在巢内的时间来增加年龄/减少求爱时间 */
         private static void setBeeReleaseData(int ticksInHive, GardenBee bee) {
             int i = bee.getAge();
             if (i < 0) {
@@ -692,7 +714,6 @@ public class GardenBeeNestBlockEntity extends BlockEntity {
             } else if (i > 0) {
                 bee.setAge(Math.max(0, i - ticksInHive));
             }
-
             bee.setInLoveTime(Math.max(0, bee.getInLoveTime() - ticksInHive));
         }
     }

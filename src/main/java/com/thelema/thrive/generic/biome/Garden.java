@@ -8,7 +8,12 @@ import com.thelema.thrive.register.EntityRegister;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.MobSpawnType;
+import net.minecraft.world.entity.SpawnPlacements;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -35,7 +40,7 @@ public class Garden {
         // 2. 每天最多只能来一次
         if (lastSpawnDay == currentDay) return;
 
-        // 3. 时间段不一定：每天 20 次机会，每次 15% 概率触发（一天内有 96% 概率会来）
+        // 3. 每天 20 次机会，每次 15% 概率触发（一天内有 96% 概率会来）
         if (ThriveMod.R.nextFloat() > 0.15f) return;
 
         // 标记今天已经刷过了
@@ -74,41 +79,61 @@ public class Garden {
             // 核心：只需要生成点在花园群系即可
             if (!level.getBiome(origin).is(BiomeRegister.GARDEN)) continue;
 
-            int y = level.getHeight(Heightmap.Types.WORLD_SURFACE, origin.getX(), origin.getZ());
+            // 忽略树叶，避免锚点落在树冠上
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, origin.getX(), origin.getZ());
             return new BlockPos(origin.getX(), y, origin.getZ());
         }
         return null;
     }
 
-    private static void spawnPatrolGroup(ServerLevel level, BlockPos spawnPos, ServerPlayer targetPlayer) {
-        GardenWitch witch = EntityRegister.GARDEN_WITCH.get().create(level);
-        if (witch != null) {
-            witch.moveTo(spawnPos, ThriveMod.R.nextFloat() * 360f, 0);
-            witch.finalizeSpawn(level, level.getCurrentDifficultyAt(spawnPos), MobSpawnType.NATURAL, null);
-            witch.setTarget(targetPlayer);
-
-            // 确保仇恨范围足够大，跨越 64~128 格追踪玩家
-            if (witch.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.FOLLOW_RANGE) instanceof net.minecraft.world.entity.ai.attributes.AttributeInstance attr) {
-                attr.setBaseValue(128.0D);
-            }
-            level.addFreshEntity(witch);
+    private static void spawnPatrolGroup(ServerLevel level, BlockPos anchor, ServerPlayer target) {
+        // Witch
+        BlockPos witchPos = findPos(level, anchor, EntityRegister.GARDEN_WITCH.get());
+        if (witchPos != null) {
+            spawn(EntityRegister.GARDEN_WITCH.get().create(level), level, witchPos, target);
         }
 
-        // 每次固定生成 3~5 只掠夺者
+        // Pillager 3~5 只
         int count = 3 + ThriveMod.R.nextInt(3);
         for (int i = 0; i < count; i++) {
-            BlockPos p = spawnPos.offset(ThriveMod.R.nextInt(8) - 4, 0, ThriveMod.R.nextInt(8) - 4);
-            GardenPillager pillager = EntityRegister.GARDEN_PILLAGER.get().create(level);
-            if (pillager != null) {
-                pillager.moveTo(p, ThriveMod.R.nextFloat() * 360f, 0);
-                pillager.finalizeSpawn(level, level.getCurrentDifficultyAt(p), MobSpawnType.NATURAL, null);
-                pillager.setTarget(targetPlayer);
-
-                if (pillager.getAttribute(net.minecraft.world.entity.ai.attributes.Attributes.FOLLOW_RANGE) instanceof net.minecraft.world.entity.ai.attributes.AttributeInstance attr) {
-                    attr.setBaseValue(128.0D);
-                }
-                level.addFreshEntity(pillager);
+            BlockPos p = findPos(level, anchor, EntityRegister.GARDEN_PILLAGER.get());
+            if (p != null) {
+                spawn(EntityRegister.GARDEN_PILLAGER.get().create(level), level, p, target);
             }
         }
+    }
+
+    /**
+     * 在锚点 ±12 格内找一个规则认可的地面位置，最多试 24 次。
+     * 用 MobSpawnType.EVENT 调用规则，跳过光照检查，白天也能刷；
+     * ON_GROUND 约束会拦掉水面、半空、悬崖外的位置。
+     */
+    private static BlockPos findPos(ServerLevel level, BlockPos anchor, EntityType<?> type) {
+        for (int i = 0; i < 24; i++) {
+            BlockPos base = anchor.offset(
+                    ThriveMod.R.nextInt(25) - 12, 0,
+                    ThriveMod.R.nextInt(25) - 12);
+            if (!level.hasChunkAt(base)) continue;
+
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, base.getX(), base.getZ());
+            BlockPos pos = new BlockPos(base.getX(), y, base.getZ());
+
+            if (SpawnPlacements.checkSpawnRules(type, level, MobSpawnType.EVENT, pos, level.random)) {
+                return pos;
+            }
+        }
+        return null;
+    }
+
+    /** 把一只已创建的实体放到合法位置并加入世界 */
+    private static void spawn(Mob mob, ServerLevel level, BlockPos pos, ServerPlayer target) {
+        if (mob == null) return;
+        mob.moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, ThriveMod.R.nextFloat() * 360f, 0);
+        mob.finalizeSpawn(level, level.getCurrentDifficultyAt(pos), MobSpawnType.EVENT, null);
+        mob.setTarget(target);
+        if (mob.getAttribute(Attributes.FOLLOW_RANGE) instanceof AttributeInstance attr) {
+            attr.setBaseValue(128.0D);
+        }
+        level.addFreshEntity(mob);
     }
 }

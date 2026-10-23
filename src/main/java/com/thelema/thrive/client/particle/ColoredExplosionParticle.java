@@ -1,57 +1,39 @@
 package com.thelema.thrive.client.particle;
 
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.particle.*;
+import net.minecraft.client.particle.HugeExplosionParticle;
+import net.minecraft.client.particle.Particle;
+import net.minecraft.client.particle.ParticleProvider;
+import net.minecraft.client.particle.SpriteSet;
 import net.minecraft.core.particles.SimpleParticleType;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.api.distmarker.OnlyIn;
 
-public class ColoredExplosionParticle extends TextureSheetParticle {
-
-    private final SpriteSet spriteSet;
+@OnlyIn(Dist.CLIENT)
+public class ColoredExplosionParticle extends HugeExplosionParticle {
 
     public ColoredExplosionParticle(ClientLevel level, double x, double y, double z,
-                                    double xSpeed, double ySpeed, double zSpeed,
-                                    SpriteSet spriteSet, int color) {
-        super(level, x, y, z);
-        this.spriteSet = spriteSet;
+                                    double quadSizeMultiplier, SpriteSet spriteSet,
+                                    float r, float g, float b) {
+        // HugeExplosionParticle 把 xSpeed 当作大小乘数
+        super(level, x, y, z, quadSizeMultiplier, spriteSet);
 
-        this.xd = xSpeed;
-        this.yd = ySpeed;
-        this.zd = zSpeed;
+        // 原版 HugeExplosionParticle 在 super() 里已经给 rCol/gCol/bCol 赋了随机灰度值 (0.4 ~ 1.0)
+        // 我们直接拿它当亮度乘数
+        float brightness = this.rCol;
 
-        // 颜色：从 int 拆出 R/G/B，归一化到 0~1
-        float r = ((color >> 16) & 0xFF) / 255.0F;
-        float g = ((color >> 8) & 0xFF) / 255.0F;
-        float b = (color & 0xFF) / 255.0F;
-        this.setColor(r, g, b);
-
-        this.lifetime = 10 + this.random.nextInt(6);
-        this.gravity = 0.0F;
-        this.hasPhysics = false;
-        this.quadSize = 0.8F + this.random.nextFloat() * 0.4F;
-
-        this.setSpriteFromAge(spriteSet);
+        // 目标颜色 × 随机亮度
+        this.setColor(r * brightness, g * brightness, b * brightness);
     }
 
-    @Override
-    public void tick() {
-        this.setSpriteFromAge(spriteSet);
-        super.tick();
-    }
-
-    @Override
-    public ParticleRenderType getRenderType() {
-        return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT;
-    }
-
-    /** ParticleProvider：将 SpriteSet 和颜色传入 Particle 构造。 */
-    public record Provider(SpriteSet spriteSet) implements ParticleProvider<SimpleParticleType> {
+    @OnlyIn(Dist.CLIENT)
+    public record Provider(SpriteSet spriteSet, float r, float g, float b) implements ParticleProvider<SimpleParticleType> {
         @Override
         public Particle createParticle(SimpleParticleType type, ClientLevel level,
                                        double x, double y, double z,
                                        double xSpeed, double ySpeed, double zSpeed) {
-            // 默认颜色（亮黄），可被外部覆盖
-            return new ColoredExplosionParticle(level, x, y, z,
-                    xSpeed, ySpeed, zSpeed, spriteSet, 0xFFFF33);
+            // 注意：原版把 xSpeed 传给了 quadSizeMultiplier
+            return new ColoredExplosionParticle(level, x, y, z, xSpeed, spriteSet, r, g, b);
         }
     }
 }

@@ -26,7 +26,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.WitherSkull;
 import net.minecraft.world.entity.vehicle.MinecartTNT;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.BlockItemStateProperties;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
@@ -53,13 +52,17 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import javax.annotation.Nullable;
 import java.util.List;
 
+/**
+ * 花园蜂巢方块类。
+ * 负责处理视觉状态（是否有蜂蜜）、交互（取蜜）、掉落物打包（携带蜜蜂数据）。
+ * 核心的酿蜜与蜜蜂管理逻辑委托给 {@link GardenBeeNestBlockEntity}。
+ */
 public class GardenBeeNest extends BaseEntityBlock {
     public static final MapCodec<GardenBeeNest> CODEC = simpleCodec(GardenBeeNest::new);
 
     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+    /** 控制外观模型切换：有蜂蜜时显示满蜜纹理 */
     public static final BooleanProperty HAS_HONEY = BooleanProperty.create("has_honey");
-    public static final int MAX_HONEY_LEVELS = 5;
-    private static final int SHEARED_HONEYCOMB_COUNT = 3;
 
     public GardenBeeNest() {
         this(BlockBehaviour.Properties.of()
@@ -72,7 +75,7 @@ public class GardenBeeNest extends BaseEntityBlock {
 
     public GardenBeeNest(BlockBehaviour.Properties properties) {
         super(properties);
-        // 默认没有蜂蜜
+        // 默认放置时无蜂蜜，朝向北
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(HAS_HONEY, false)
                 .setValue(FACING, Direction.NORTH));
@@ -80,7 +83,7 @@ public class GardenBeeNest extends BaseEntityBlock {
 
     @Override
     protected RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
+        return RenderShape.MODEL; // 使用标准方块模型渲染，不需要 BER
     }
 
     @Override
@@ -90,10 +93,12 @@ public class GardenBeeNest extends BaseEntityBlock {
 
     @Override
     protected boolean hasAnalogOutputSignal(BlockState state) {
-        return true;
+        return true; // 允许比较器读取
     }
 
-    // 比较器改为从 BE 读花蜜和蜂蜜数量
+    /**
+     * 比较器输出信号 = 花蜜等级 + 成品蜂蜜数量。
+     */
     @Override
     protected int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos) {
         if (level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be) {
@@ -102,101 +107,88 @@ public class GardenBeeNest extends BaseEntityBlock {
         return 0;
     }
 
+    /**
+     * 方块被破坏时触发（例如玩家挖掘或爆炸）。
+     * 负责释放巢内蜜蜂，并触发进度触发器。
+     */
     @Override
     public void playerDestroy(Level level, Player player, BlockPos pos, BlockState state, @Nullable BlockEntity te, ItemStack stack) {
         super.playerDestroy(level, player, pos, state, te, stack);
-        // 替换为 GardenHiveBlockEntity
-        if (!level.isClientSide && te instanceof GardenBeeNestBlockEntity beehiveblockentity) {
+        if (!level.isClientSide && te instanceof GardenBeeNestBlockEntity be) {
+            // 如果工具没有“精准采集”或“阻止蜜蜂生成”的附魔，则紧急释放蜜蜂
             if (!EnchantmentHelper.hasTag(stack, EnchantmentTags.PREVENTS_BEE_SPAWNS_WHEN_MINING)) {
-                beehiveblockentity.emptyAllLivingFromHive(player, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
+                be.emptyAllLivingFromHive(player, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
                 level.updateNeighbourForOutputSignal(pos, this);
                 this.angerNearbyBees(level, pos);
             }
-            CriteriaTriggers.BEE_NEST_DESTROYED.trigger((ServerPlayer)player, state, stack, beehiveblockentity.getOccupantCount());
+            CriteriaTriggers.BEE_NEST_DESTROYED.trigger((ServerPlayer)player, state, stack, be.getOccupantCount());
         }
     }
 
+    /**
+     * 激怒周围尚未驯服的野生花园蜜蜂。
+     */
     private void angerNearbyBees(Level level, BlockPos pos) {
         AABB aabb = new AABB(pos).inflate(8.0, 6.0, 8.0);
         List<GardenBee> list = level.getEntitiesOfClass(GardenBee.class, aabb);
-        if (!list.isEmpty()) {
-            List<Player> list1 = level.getEntitiesOfClass(Player.class, aabb);
-            if (list1.isEmpty()) return;
-            for (GardenBee bee : list) {
-                // 【新增过滤】如果这只蜜蜂已经被驯服了，就不激怒它
-                if (bee.isTame()) continue;
+        if (list.isEmpty()) return;
+        
+        List<Player> players = level.getEntitiesOfClass(Player.class, aabb);
+        if (players.isEmpty()) return;
 
-                if (bee.getTarget() == null) {
-                    Player player = Util.getRandom(list1, level.random);
-                    bee.setTarget(player);
-                }
+        for (GardenBee bee : list) {
+            if (bee.isTame()) continue; // 已驯服的蜜蜂不攻击玩家
+            if (bee.getTarget() == null) {
+                bee.setTarget(Util.getRandom(players, level.random));
             }
         }
     }
 
-    public static void dropHoneycomb(Level level, BlockPos pos) {
-        popResource(level, pos, new ItemStack(Items.HONEYCOMB, 3));
-    }
-
+    /**
+     * 玩家右键交互：
+     * 优先尝试用玻璃瓶或剪刀取蜜。如果取蜜成功且没有营火镇压，会激怒并释放蜜蜂。
+     */
     @Override
-    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
-        if (!level.isClientSide && level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be) {
-            // 尝试取蜜（消耗玻璃瓶/剪刀）
-            if (be.take(player, stack)) {
-                // 取蜜成功后：
-                // 如果下方没有营火（没有被烟熏镇静）
-                if (!CampfireBlock.isSmokeyPos(level, pos)) {
-                    // 如果里面有蜜蜂，激怒周围的游荡蜜蜂
-                    if (!be.isEmpty()) {
-                        this.angerNearbyBees(level, pos);
-                    }
-                    // 将巢内的蜜蜂全部以“紧急状态”放出，它们会直接攻击玩家
-                    be.emptyAllLivingFromHive(player, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
-                }
-
-                // 更新红石信号
-                level.updateNeighbourForOutputSignal(pos, this);
-
-                return ItemInteractionResult.sidedSuccess(level.isClientSide);
-            }
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+                                              Player player, InteractionHand hand, BlockHitResult hitResult) {
+        // 卫语句：客户端或非本方块实体直接返回
+        if (level.isClientSide || !(level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be)) {
+            return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
         }
-        // 如果拿的不是瓶子/剪刀，或者没蜂蜜，走默认交互
-        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
-    }
-
-    private boolean hiveContainsBees(Level level, BlockPos pos) {
-        // 替换为 GardenHiveBlockEntity
-        return level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be && !be.isEmpty();
-    }
-
-    public void releaseBeesAndResetHoneyLevel(Level level, BlockState state, BlockPos pos, @Nullable Player player, GardenBeeNestBlockEntity.BeeReleaseStatus beeReleaseStatus) {
-        this.resetHoneyLevel(level, state, pos);
-        // 替换为 GardenHiveBlockEntity
-        if (level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be) {
-            be.emptyAllLivingFromHive(player, state, beeReleaseStatus);
+        
+        // 如果手里拿着玻璃瓶/剪刀且成功取蜜，继续往下走处理激怒逻辑
+        if (!be.take(player, stack)) {
+            return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
         }
-    }
 
-    public void resetHoneyLevel(Level level, BlockState state, BlockPos pos) {
-        if (state.hasProperty(HAS_HONEY) && state.getValue(HAS_HONEY)) {
-            level.setBlock(pos, state.setValue(HAS_HONEY, false), 3);
+        // 取蜜后若下方没有营火，激怒周围的蜜蜂并释放巢内的蜜蜂。
+        // 但蜂巢里的蜜蜂全是玩家自己的，就不放出来（否则出来又进巢，右键会抽搐）。
+        if (!CampfireBlock.isSmokeyPos(level, pos)
+                && !be.isEmpty()
+                && !be.isOwnedBy(player)) {
+            this.angerNearbyBees(level, pos);
+            be.emptyAllLivingFromHive(player, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
         }
+        level.updateNeighbourForOutputSignal(pos, this);
+        return ItemInteractionResult.sidedSuccess(false);
     }
 
+    /**
+     * 客户端粒子效果：当内部有成品蜂蜜时，随机滴落蜂蜜粒子。
+     */
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
-        // 改为读取方块实体里的蜂蜜数量是否大于 0
-        if (level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be && be.getHoneyCount() > 0) {
-            for (int i = 0; i < random.nextInt(1) + 1; i++) {
-                this.trySpawnDripParticles(level, pos, state);
-            }
+        if (level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be && be.honeyCount() > 0) {
+            this.trySpawnDripParticles(level, pos, state);
         }
     }
 
     private void trySpawnDripParticles(Level level, BlockPos pos, BlockState state) {
+        // 如果方块上方有水，或者随机概率不满足，就不滴落
         if (state.getFluidState().isEmpty() && !(level.random.nextFloat() < 0.3F)) {
             VoxelShape voxelshape = state.getCollisionShape(level, pos);
             double d0 = voxelshape.max(Direction.Axis.Y);
+            // 根据碰撞箱判断从何处滴落
             if (d0 >= 1.0 && !state.is(BlockTags.IMPERMEABLE)) {
                 double d1 = voxelshape.min(Direction.Axis.Y);
                 if (d1 > 0.0) {
@@ -249,26 +241,28 @@ public class GardenBeeNest extends BaseEntityBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return level.isClientSide? null : createTickerHelper(type, BlockEntityRegister.GARDEN_BEE_NEST.get(), GardenBeeNestBlockEntity::serverTick);
+        return level.isClientSide ? null : createTickerHelper(type, BlockEntityRegister.GARDEN_BEE_NEST.get(), GardenBeeNestBlockEntity::serverTick);
     }
 
+    /**
+     * 创造模式破坏方块时：如果里面有蜜蜂或有蜂蜜，将数据打包到掉落物中。
+     */
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
         if (!level.isClientSide && player.isCreative() && level.getGameRules().getBoolean(GameRules.RULE_DOBLOCKDROPS)
-                && level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity beehiveblockentity) {
+                && level.getBlockEntity(pos) instanceof GardenBeeNestBlockEntity be) {
 
             boolean hasHoney = state.getValue(HAS_HONEY);
-            boolean hasBees = !beehiveblockentity.isEmpty();
+            boolean hasBees = !be.isEmpty();
 
             if (hasBees || hasHoney) {
                 ItemStack itemstack = new ItemStack(this);
-                // 打包蜜蜂数据
-                itemstack.applyComponents(beehiveblockentity.collectComponents());
-
-                // 打包外观状态 (has_honey 是布尔值，存 1 代表有，0 代表无)
+                // 将容器内的蜜蜂数据转化为物品的 DataComponent
+                itemstack.applyComponents(be.collectComponents());
+                // 将外观状态（是否有蜂蜜）打包进物品状态
                 itemstack.set(DataComponents.BLOCK_STATE, BlockItemStateProperties.EMPTY.with(HAS_HONEY, hasHoney));
 
-                ItemEntity itementity = new ItemEntity(level, (double)pos.getX(), (double)pos.getY(), (double)pos.getZ(), itemstack);
+                ItemEntity itementity = new ItemEntity(level, pos.getX(), pos.getY(), pos.getZ(), itemstack);
                 itementity.setDefaultPickUpDelay();
                 level.addFreshEntity(itementity);
             }
@@ -276,26 +270,29 @@ public class GardenBeeNest extends BaseEntityBlock {
         return super.playerWillDestroy(level, pos, state, player);
     }
 
+    /**
+     * 处理战利品表掉落（TNT、苦力怕等炸毁时，需要释放蜜蜂）。
+     */
     @Override
     protected List<ItemStack> getDrops(BlockState state, LootParams.Builder params) {
         Entity entity = params.getOptionalParameter(LootContextParams.THIS_ENTITY);
         if (entity instanceof PrimedTnt || entity instanceof Creeper || entity instanceof WitherSkull
                 || entity instanceof WitherBoss || entity instanceof MinecartTNT) {
             BlockEntity blockentity = params.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
-            // 替换为 GardenHiveBlockEntity
-            if (blockentity instanceof GardenBeeNestBlockEntity beehiveblockentity) {
-                beehiveblockentity.emptyAllLivingFromHive(null, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
+            if (blockentity instanceof GardenBeeNestBlockEntity be) {
+                be.emptyAllLivingFromHive(null, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
             }
         }
         return super.getDrops(state, params);
     }
 
     @Override
-    protected BlockState updateShape(BlockState state, Direction facing, BlockState facingState, LevelAccessor level, BlockPos currentPos, BlockPos facingPos) {
-        // 替换为 GardenHiveBlockEntity
-        if (level.getBlockState(facingPos).getBlock() instanceof FireBlock
-                && level.getBlockEntity(currentPos) instanceof GardenBeeNestBlockEntity beehiveblockentity) {
-            beehiveblockentity.emptyAllLivingFromHive(null, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
+    protected BlockState updateShape(BlockState state, Direction facing, BlockState facingState,
+                                     LevelAccessor level, BlockPos currentPos, BlockPos facingPos) {
+        // 邻接方块是火时，紧急释放蜜蜂
+        if (facingState.getBlock() instanceof FireBlock
+                && level.getBlockEntity(currentPos) instanceof GardenBeeNestBlockEntity hive) {
+            hive.emptyAllLivingFromHive(null, state, GardenBeeNestBlockEntity.BeeReleaseStatus.EMERGENCY);
         }
         return super.updateShape(state, facing, facingState, level, currentPos, facingPos);
     }
@@ -309,5 +306,4 @@ public class GardenBeeNest extends BaseEntityBlock {
     public BlockState mirror(BlockState state, Mirror mirror) {
         return state.rotate(mirror.getRotation(state.getValue(FACING)));
     }
-
 }

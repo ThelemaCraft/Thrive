@@ -5,7 +5,9 @@ import com.thelema.thrive.generic.blockentity.cap.Surface;
 import com.thelema.thrive.generic.blockentity.convertor.Convertor;
 import com.thelema.thrive.generic.blockentity.convertor.ConvertorRegistry;
 import com.thelema.thrive.register.BlockEntityRegister;
+import com.thelema.thrive.register.BlockRegister;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
@@ -40,7 +42,7 @@ public class BiomeCoreBlockEntity extends BlockEntity {
     public final CompoundTag data = new CompoundTag();
 
     public BiomeCoreBlockEntity(BlockPos pos, BlockState state) {
-        super(BlockEntityRegister.THRIVE_CORE.get(), pos, state);
+        super(BlockEntityRegister.BIOME_CORE.get(), pos, state);
     }
 
     public int minY() {
@@ -58,6 +60,17 @@ public class BiomeCoreBlockEntity extends BlockEntity {
         be.rotator.tick();
         if (level.isClientSide) return;
 
+        // 每 10 天（240,000 tick）的黎明时分，在 Surface 中生成一个物品
+        long dayTime = level.getDayTime();
+        if (dayTime > 0 && dayTime % 240000L == 0) {
+            // 如果 Surface 里面是空的，才生成
+            if (be.surface.getStack().isEmpty()) {
+                // 替换为你想要生成的物品，比如群系核心本身或其他材料
+                be.surface.set(new ItemStack(BlockRegister.BIOME_CORE.get()), Direction.UP);
+                be.setChanged();
+                level.sendBlockUpdated(pos, state, state, 3); // 通知客户端刷新
+            }
+        }
         // 转换中
         if (!be.rotator.isEmpty()) {
             Convertor c = ConvertorRegistry.get(be.activeConvertorId);

@@ -108,11 +108,11 @@ public class PrimedLanternBerry extends Entity implements TraceableEntity {
 
 
             sl.sendParticles(
-                    ParticleRegister.FLAME_EXPLOSION.get(),
+                    ParticleRegister.JUICE_EXPLOSION_EMITTER.get(),
                     cx, cy, cz,
-                    20,              // 数量少，只在中心一闪
-                    0.8, 0.8, 0.8,   // 稍微散开
-                    0.0              // 速度 0，原地
+                    1,              // 只发 1 颗发射器
+                    0.0, 0.0, 0.0,  // 无偏移
+                    0.0             // 无速度（发射器本身不移动）
             );
 
             // 一次调用发 300 颗，球状分布

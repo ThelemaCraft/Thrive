@@ -1,6 +1,5 @@
 package com.thelema.thrive.generic.entity;
 
-import com.google.common.collect.Lists;
 import com.thelema.thrive.generic.blockentity.GardenBeeNestBlockEntity;
 import com.thelema.thrive.register.BlockRegister;
 import com.thelema.thrive.register.EntityRegister;
@@ -23,7 +22,6 @@ import net.minecraft.tags.ItemTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.Mth;
 import net.minecraft.util.TimeUtil;
-import net.minecraft.util.VisibleForDebug;
 import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -61,78 +59,85 @@ import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.pathfinder.Path;
 import net.minecraft.world.level.pathfinder.PathType;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.fluids.FluidType;
+import org.jetbrains.annotations.Nullable;
 
-import javax.annotation.Nullable;
 import java.util.*;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+/**
+ * 花园蜜蜂实体。
+ * 继承了 TamableAnimal（可驯服），实现了 NeutralMob（中立反击）、FlyingAnimal（飞行）。
+ * 具有采蜜、回巢、战斗突刺、药水淬毒等复杂行为。
+ */
 public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal {
+
     public static final float FLAP_DEGREES_PER_TICK = 120.32113F;
     public static final int TICKS_PER_FLAP = Mth.ceil(1.4959966F);
-    private static final EntityDataAccessor<Byte> DATA_FLAGS_ID = SynchedEntityData.defineId(GardenBee.class, EntityDataSerializers.BYTE);
-    private static final EntityDataAccessor<Integer> DATA_REMAINING_ANGER_TIME = SynchedEntityData.defineId(GardenBee.class, EntityDataSerializers.INT);
-    public static final int ATTACK_INTERVAL = 40; // 2秒一次攻击周期
-    public static final int LUNGE_TICKS = 10;     // 突刺动作持续10 tick
-    private static final int IMPACT_TICK = 5;     // 第5 tick造成伤害
-    private static final int FLAG_ROLL = 2;
-    private static final int FLAG_HAS_STUNG = 4;
-    private static final int FLAG_HAS_NECTAR = 8;
-    private static final int STING_DEATH_COUNTDOWN = 1200;
-    private static final int TICKS_BEFORE_GOING_TO_KNOWN_FLOWER = 2400;
-    private static final int TICKS_WITHOUT_NECTAR_BEFORE_GOING_HOME = 3600;
-    private static final int MIN_ATTACK_DIST = 4;
-    private static final int MAX_CROPS_GROWABLE = 10;
-    private static final int POISON_SECONDS_NORMAL = 10;
-    private static final int POISON_SECONDS_HARD = 18;
-    private static final int TOO_FAR_DISTANCE = 32;
-    private static final int HIVE_CLOSE_ENOUGH_DISTANCE = 2;
-    private static final int PATHFIND_TO_HIVE_WHEN_CLOSER_THAN = 16;
-    private static final int HIVE_SEARCH_DISTANCE = 20;
-    public static final String TAG_CROPS_GROWN_SINCE_POLLINATION = "CropsGrownSincePollination";
-    public static final String TAG_CANNOT_ENTER_HIVE_TICKS = "CannotEnterHiveTicks";
-    public static final String TAG_TICKS_SINCE_POLLINATION = "TicksSincePollination";
-    public static final String TAG_HAS_STUNG = "HasStung";
-    public static final String TAG_HAS_NECTAR = "HasNectar";
-    public static final String TAG_FLOWER_POS = "flower_pos";
-    public static final String TAG_HIVE_POS = "hive_pos";
+    public static final int ATTACK_INTERVAL = 40; // 攻击冷却：2秒
+    public static final int LUNGE_TICKS = 10;     // 突刺前摇：0.5秒
+    /** 每次喂蜜脾的驯服概率。 */
+    public static final float TAME_CHANCE = 0.25F;
+
+    private static final int IMPACT_TICK = 5;     // 突刺第5 tick 结算伤害
+    private static final int FLAG_ROLL = 2;       // 翻滚状态标志位
+    private static final int FLAG_HAS_STUNG = 4;  // 蛰人状态（本类已不使用，保留以防报错）
+    private static final int FLAG_HAS_NECTAR = 8; // 携带花蜜标志位
+    private static final int COOLDOWN_BEFORE_LOCATING_NEW_HIVE = 200;
+    private static final int COOLDOWN_BEFORE_LOCATING_NEW_FLOWER = 200;
+
+    private static final EntityDataAccessor<Byte> DATA_FLAGS_ID =
+            SynchedEntityData.defineId(GardenBee.class, EntityDataSerializers.BYTE);
+    private static final EntityDataAccessor<Integer> DATA_REMAINING_ANGER_TIME =
+            SynchedEntityData.defineId(GardenBee.class, EntityDataSerializers.INT);
+
     private static final UniformInt PERSISTENT_ANGER_TIME = TimeUtil.rangeOfSeconds(20, 39);
-    @Nullable
-    private UUID persistentAngerTarget;
+
+    @Nullable private UUID persistentAngerTarget;
     private float rollAmount;
     private float rollAmountO;
-    private int timeSinceSting;
-    int ticksWithoutNectarSinceExitingHive;
     private int stayOutOfHiveCountdown;
     private int numCropsGrownSincePollination;
-    private static final int COOLDOWN_BEFORE_LOCATING_NEW_HIVE = 200;
-    int remainingCooldownBeforeLocatingNewHive;
-    private static final int COOLDOWN_BEFORE_LOCATING_NEW_FLOWER = 200;
-    int remainingCooldownBeforeLocatingNewFlower = Mth.nextInt(this.random, 20, 60);
-    @Nullable
-    BlockPos savedFlowerPos;
-    @Nullable
-    BlockPos hivePos;
-    GardenBee.BeePollinateGoal beePollinateGoal;
-    GardenBee.BeeGoToHiveGoal goToHiveGoal;
-    private GardenBee.BeeGoToKnownFlowerGoal goToKnownFlowerGoal;
     private int underWaterTicks;
-    private int attackCooldown;
-    private int lungeTicks;
-    @Nullable
-    private Entity pendingTarget;
-    public PotionContents stingerPotionContents = null;
 
-    public GardenBee(EntityType<? extends GardenBee> entityType, Level level) {
-        super(entityType, level);
+    int ticksWithoutNectarSinceExitingHive;
+    int remainingCooldownBeforeLocatingNewHive;
+    int remainingCooldownBeforeLocatingNewFlower = Mth.nextInt(this.random, 20, 60);
+
+    // 战斗状态
+    int attackCooldown;
+    private int lungeTicks;
+    @Nullable private Entity pendingTarget;
+
+    @Nullable BlockPos savedFlowerPos;
+    @Nullable BlockPos hivePos;
+
+    // 核心 Goal 引用
+    GardenBeePollinateGoal beePollinateGoal;
+    GardenBeeGoToHiveGoal goToHiveGoal;
+
+    /** 蜂巢里的滞留药水会给针刺附毒；由蜂巢 BE 在出巢时写入。 */
+    @Nullable public PotionContents stingerPotionContents;
+
+    public GardenBee(EntityType<? extends GardenBee> type, Level level) {
+        super(type, level);
         this.moveControl = new FlyingMoveControl(this, 20, true);
-        this.lookControl = new GardenBee.BeeLookControl(this);
+        this.lookControl = new GardenBeeLookControl(this);
+        // 设置寻路惩罚：蜜蜂会躲避火、水等危险方块
         this.setPathfindingMalus(PathType.DANGER_FIRE, -1.0F);
         this.setPathfindingMalus(PathType.WATER, -1.0F);
         this.setPathfindingMalus(PathType.WATER_BORDER, 16.0F);
         this.setPathfindingMalus(PathType.COCOA, -1.0F);
         this.setPathfindingMalus(PathType.FENCE, -1.0F);
+    }
+
+    public static AttributeSupplier.Builder createAttributes() {
+        return Mob.createMobAttributes()
+                .add(Attributes.MAX_HEALTH, 20.0)
+                .add(Attributes.FLYING_SPEED, 0.6F)
+                .add(Attributes.MOVEMENT_SPEED, 0.3F)
+                .add(Attributes.ATTACK_DAMAGE, 4.0)
+                .add(Attributes.FOLLOW_RANGE, 48.0);
     }
 
     @Override
@@ -143,226 +148,451 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
     }
 
     @Override
+    protected void registerGoals() {
+        // 优先级从 0 到 9 依次降低
+        this.goalSelector.addGoal(0, new GardenBeeFleeGoal(this)); // 残血逃跑
+        this.goalSelector.addGoal(0, new GardenBeeAttackGoal(this)); // 战斗突刺
+        this.goalSelector.addGoal(1, new GardenBeeEnterHiveGoal(this)); // 入巢
+        this.goalSelector.addGoal(2, new FollowOwnerGoal(this, 1.25D, 10.0F, 2.0F)); // 跟随主人
+        this.goalSelector.addGoal(2, new BreedGoal(this, 1.0)); // 繁殖
+        this.goalSelector.addGoal(3, new TemptGoal(this, 1.25, stack -> stack.is(ItemTags.BEE_FOOD), false)); // 被花吸引
+        this.beePollinateGoal = new GardenBeePollinateGoal(this);
+        this.goalSelector.addGoal(4, this.beePollinateGoal); // 采蜜
+        this.goalSelector.addGoal(5, new FollowParentGoal(this, 1.25)); // 跟随幼崽
+        this.goalSelector.addGoal(5, new GardenBeeLocateHiveGoal(this)); // 寻找蜂巢
+        this.goToHiveGoal = new GardenBeeGoToHiveGoal(this);
+        this.goalSelector.addGoal(5, this.goToHiveGoal); // 飞向蜂巢
+        this.goalSelector.addGoal(6, new GardenBeeGoToKnownFlowerGoal(this)); // 飞向已知花朵
+        this.goalSelector.addGoal(7, new GardenBeeGrowCropGoal(this)); // 催熟作物
+        this.goalSelector.addGoal(8, new GardenBeeWanderGoal(this)); // 闲逛
+        this.goalSelector.addGoal(9, new FloatGoal(this)); // 浮水
+
+        this.targetSelector.addGoal(1, new OwnerHurtByTargetGoal(this)); // 主人被攻击
+        this.targetSelector.addGoal(1, new OwnerHurtTargetGoal(this)); // 主人攻击别人
+        this.targetSelector.addGoal(1, new GardenBeeHurtByOtherGoal(this).setAlertOthers()); // 被攻击反击
+        this.targetSelector.addGoal(2, new GardenBeeBecomeAngryTargetGoal(this)); // 中立愤怒锁定
+        this.targetSelector.addGoal(3, new ResetUniversalAngerTargetGoal<>(this, true)); // 愤怒时间重置
+    }
+
+    @Override
+    protected PathNavigation createNavigation(Level level) {
+        FlyingPathNavigation navigation = new FlyingPathNavigation(this, level) {
+            @Override
+            public boolean isStableDestination(BlockPos pos) {
+                return !this.level.getBlockState(pos.below()).isAir();
+            }
+
+            @Override
+            public void tick() {
+                // 采蜜悬停时，暂停寻路系统的接管，防止它把蜜蜂拽走
+                if (!GardenBee.this.beePollinateGoal.isPollinating()) {
+                    super.tick();
+                }
+            }
+        };
+        navigation.setCanOpenDoors(false);
+        navigation.setCanFloat(false);
+        navigation.setCanPassDoors(true);
+        return navigation;
+    }
+
+    @Override
     public float getWalkTargetValue(BlockPos pos, LevelReader level) {
         return level.getBlockState(pos).isAir() ? 10.0F : 0.0F;
     }
 
     @Override
-    protected void registerGoals() {
-        this.goalSelector.addGoal(0, new BeeFleeGoal(this));
-        this.goalSelector.addGoal(0, new GardenBee.BeeAttackGoal(this, 1.4F, true));
-        this.goalSelector.addGoal(1, new GardenBee.BeeEnterHiveGoal());
-        this.goalSelector.addGoal(2, new FollowOwnerGoal(this, 1.25D, 10.0F, 2.0F));
-        this.goalSelector.addGoal(2, new BreedGoal(this, 1.0));
-        this.goalSelector.addGoal(3, new TemptGoal(this, 1.25, p_335831_ -> p_335831_.is(ItemTags.BEE_FOOD), false));
-        this.beePollinateGoal = new GardenBee.BeePollinateGoal();
-        this.goalSelector.addGoal(4, this.beePollinateGoal);
-        this.goalSelector.addGoal(5, new FollowParentGoal(this, 1.25));
-        this.goalSelector.addGoal(5, new GardenBee.BeeLocateHiveGoal());
-        this.goToHiveGoal = new GardenBee.BeeGoToHiveGoal();
-        this.goalSelector.addGoal(5, this.goToHiveGoal);
-        this.goToKnownFlowerGoal = new GardenBee.BeeGoToKnownFlowerGoal();
-        this.goalSelector.addGoal(6, this.goToKnownFlowerGoal);
-        this.goalSelector.addGoal(7, new GardenBee.BeeGrowCropGoal());
-        this.goalSelector.addGoal(8, new GardenBee.BeeWanderGoal());
-        this.goalSelector.addGoal(9, new FloatGoal(this));
-        this.targetSelector.addGoal(1, new OwnerHurtByTargetGoal(this));
-        this.targetSelector.addGoal(1, new OwnerHurtTargetGoal(this));
-        this.targetSelector.addGoal(1, new GardenBee.BeeHurtByOtherGoal(this).setAlertOthers());
-        this.targetSelector.addGoal(2, new GardenBee.BeeBecomeAngryTargetGoal(this));
-        this.targetSelector.addGoal(3, new ResetUniversalAngerTargetGoal<>(this, true));
+    public boolean isFood(ItemStack stack) {
+        return stack.is(ItemTags.BEE_FOOD);
     }
 
-    @Override
-    public boolean wantsToAttack(LivingEntity target, LivingEntity owner) {
-        // 1. 绝对不打同类
-        if (target instanceof GardenBee) {
-            return false;
-        }
-        // 2. 不打主人的其他宠物
-        if (target instanceof TamableAnimal pet && pet.isOwnedBy(owner)) {
-            return false;
-        }
-        // 3. 不打主人
-        if (target == owner) {
-            return false;
-        }
-        return super.wantsToAttack(target, owner);
-    }
+    // ==================== 交互与驯服 ====================
 
     @Override
     public InteractionResult mobInteract(Player player, InteractionHand hand) {
-        ItemStack itemstack = player.getItemInHand(hand);
+        ItemStack stack = player.getItemInHand(hand);
+        boolean honeycomb = stack.is(Items.HONEYCOMB);
 
-        // 如果拿着蜜脾，且这只蜜蜂还没被驯服
-        if (itemstack.is(Items.HONEYCOMB) && !this.isTame()) {
-            if (!player.getAbilities().instabuild) {
-                itemstack.shrink(1); // 消耗一个蜜脾（创造模式不消耗）
-            }
-
-            // 调用 TamableAnimal 自带的驯服方法
-            this.tame(player);
-
-            // 播放爱心粒子效果（7 是 TamableAnimal 里定义的爱心的 byte 事件）
-            this.level().broadcastEntityEvent(this, (byte) 7);
-
+        // 1. 用蜜脾驯服：每次 25%
+        if (honeycomb && !this.isTame()) {
+            if (!player.getAbilities().instabuild) stack.shrink(1);
+            if (!this.level().isClientSide) this.tryTame(player);
             return InteractionResult.sidedSuccess(this.level().isClientSide);
         }
 
-        // 如果已经驯服了，且拿着蜜脾，可以给蜜蜂回血或进入繁殖状态
-        if (itemstack.is(Items.HONEYCOMB) && this.isTame() && this.isOwnedBy(player)) {
-            if (this.getHealth() < this.getMaxHealth()) {
-                if (!player.getAbilities().instabuild) {
-                    itemstack.shrink(1);
-                }
-                this.heal(2.0F); // 回复 1 颗心
-                this.level().broadcastEntityEvent(this, (byte) 7); // 也可以播爱心
-                return InteractionResult.sidedSuccess(this.level().isClientSide);
-            }
+        // 2. 用蜜脾回血
+        if (honeycomb && this.isTame() && this.isOwnedBy(player) && this.getHealth() < this.getMaxHealth()) {
+            if (!player.getAbilities().instabuild) stack.shrink(1);
+            this.heal(2.0F);
+            this.level().broadcastEntityEvent(this, (byte) 7);
+            return InteractionResult.sidedSuccess(this.level().isClientSide);
         }
 
-        // 2. 切换跟随/巡逻模式
-        if (this.isTame() && this.isOwnedBy(player) && itemstack.isEmpty()) {
-            // 翻转状态
-            boolean nowSitting = !this.isOrderedToSit();
-            this.setOrderedToSit(nowSitting);
-            this.navigation.stop(); // 停止当前寻路
-            this.setTarget(null);   // 清除目标
-
-            if (nowSitting) {
-                player.displayClientMessage(Component.translatable("entity.thrive.garden_bee.patrol"), true);
-            } else {
-                player.displayClientMessage(Component.translatable("entity.thrive.garden_bee.follow"), true);
-            }
+        // 3. 空手右键切换巡逻/跟随模式
+        if (this.isTame() && this.isOwnedBy(player) && stack.isEmpty()) {
+            boolean sitting = !this.isOrderedToSit();
+            this.setOrderedToSit(sitting);
+            this.getNavigation().stop();
+            this.setTarget(null); // 清除当前目标
+            player.displayClientMessage(Component.translatable(
+                    sitting ? "entity.thrive.garden_bee.patrol" : "entity.thrive.garden_bee.follow"), true);
             return InteractionResult.sidedSuccess(this.level().isClientSide);
         }
 
         return super.mobInteract(player, hand);
     }
 
-    @Override
-    public void addAdditionalSaveData(CompoundTag compound) {
-        super.addAdditionalSaveData(compound);
-        if (this.hasHive()) {
-            compound.put("hive_pos", NbtUtils.writeBlockPos(this.getHivePos()));
+    /** 单次驯服尝试：25% 成功；成功播爱心，失败播烟雾。 */
+    private void tryTame(Player player) {
+        if (this.random.nextFloat() >= TAME_CHANCE) {
+            this.level().broadcastEntityEvent(this, (byte) 6);
+            return;
         }
-
-        if (this.hasSavedFlowerPos()) {
-            compound.put("flower_pos", NbtUtils.writeBlockPos(this.getSavedFlowerPos()));
-        }
-
-        compound.putBoolean("HasNectar", this.hasNectar());
-        compound.putBoolean("HasStung", this.hasStung());
-        compound.putInt("TicksSincePollination", this.ticksWithoutNectarSinceExitingHive);
-        compound.putInt("CannotEnterHiveTicks", this.stayOutOfHiveCountdown);
-        compound.putInt("CropsGrownSincePollination", this.numCropsGrownSincePollination);
-        this.addPersistentAngerSaveData(compound);
-
-        if (this.stingerPotionContents != null) {
-            PotionContents.CODEC.encodeStart(NbtOps.INSTANCE, this.stingerPotionContents)
-                    .result().ifPresent(tag -> compound.put("StingerPotion", tag));
-        }
+        this.tame(player);
+        this.getNavigation().stop();
+        this.setTarget(null);
+        this.level().broadcastEntityEvent(this, (byte) 7);
     }
 
     /**
-     * (abstract) Protected helper method to read subclass entity data from NBT.
+     * 统一的“队友”判定：自己、任何花园蜂、主人、主人的其它宠物、同队玩家。
+     * 所有索敌/反击/补刀路径都必须先过这里。
      */
-    @Override
-    public void readAdditionalSaveData(CompoundTag compound) {
-        this.hivePos = NbtUtils.readBlockPos(compound, "hive_pos").orElse(null);
-        this.savedFlowerPos = NbtUtils.readBlockPos(compound, "flower_pos").orElse(null);
-        super.readAdditionalSaveData(compound);
-        this.setHasNectar(compound.getBoolean("HasNectar"));
-        this.setHasStung(compound.getBoolean("HasStung"));
-        this.ticksWithoutNectarSinceExitingHive = compound.getInt("TicksSincePollination");
-        this.stayOutOfHiveCountdown = compound.getInt("CannotEnterHiveTicks");
-        this.numCropsGrownSincePollination = compound.getInt("CropsGrownSincePollination");
-        this.readPersistentAngerSaveData(this.level(), compound);
-        if (compound.contains("StingerPotion")) {
-            PotionContents.CODEC.parse(NbtOps.INSTANCE, compound.get("StingerPotion"))
-                    .result().ifPresent(contents -> this.stingerPotionContents = contents);
+    public boolean isAlly(@Nullable Entity entity) {
+        if (entity == null) return false;
+        if (entity == this || entity instanceof GardenBee) return true;
+
+        UUID owner = this.getOwnerUUID();
+        if (owner != null) {
+            if (entity.getUUID().equals(owner)) return true;
+            if (entity instanceof OwnableEntity pet && owner.equals(pet.getOwnerUUID())) return true;
         }
+        return this.isAlliedTo(entity);
+    }
+
+    /** 统一拦截：队友永远不会成为攻击目标；如果记仇对象是队友，顺手清空愤怒。 */
+    @Override
+    public void setTarget(@Nullable LivingEntity target) {
+        if (target != null && this.isAlly(target)) {
+            if (target.getUUID().equals(this.getPersistentAngerTarget())) {
+                this.stopBeingAngry();
+            }
+            return;
+        }
+        super.setTarget(target);
     }
 
     @Override
+    public boolean wantsToAttack(LivingEntity target, LivingEntity owner) {
+        return !this.isAlly(target) && super.wantsToAttack(target, owner);
+    }
+
+    /** 目标一旦变成队友，立刻放弃并清空愤怒。 */
+    private void clearAllyAnger() {
+        LivingEntity target = this.getTarget();
+        if (target != null && this.isAlly(target)) {
+            this.stopBeingAngry();
+        }
+
+        UUID angryAt = this.getPersistentAngerTarget();
+        if (angryAt == null) return;
+
+        if (angryAt.equals(this.getOwnerUUID())) {
+            this.stopBeingAngry();
+            return;
+        }
+        if (this.level() instanceof ServerLevel server) {
+            Entity entity = server.getEntity(angryAt);
+            if (entity != null && this.isAlly(entity)) {
+                this.stopBeingAngry();
+            }
+        }
+    }
+
+    // ==================== 战斗 ====================
+
+    /**
+     * 拦截原版伤害结算，改为“预约突刺”。
+     * 如果冷却好了，记录目标并开始突刺前摇，返回 true 告诉 AI 已经执行了动作。
+     */
+    @Override
     public boolean doHurtTarget(Entity target) {
+        if (this.isAlly(target)) return false;
         if (this.attackCooldown > 0) return false;
         this.pendingTarget = target;
         this.attackCooldown = ATTACK_INTERVAL;
-        this.lungeTicks = LUNGE_TICKS; // 开始突刺
+        this.lungeTicks = LUNGE_TICKS;
+        this.getNavigation().stop();
         return true;
     }
 
+    /**
+     * 真正造成伤害的方法。在前摇到达 IMPACT_TICK 时由 aiStep 调用。
+     * 包含淬毒效果结算。
+     */
     private void actualHurtTarget(Entity target) {
-        DamageSource damagesource = this.damageSources().sting(this);
-        boolean flag = target.hurt(damagesource, (float) ((int) this.getAttributeValue(Attributes.ATTACK_DAMAGE)));
-        if (flag) {
-            if (this.level() instanceof ServerLevel serverlevel) {
-                EnchantmentHelper.doPostAttackEffects(serverlevel, target, damagesource);
-            }
-            if (this.stingerPotionContents != null && target instanceof LivingEntity livingTarget) {
-                for (MobEffectInstance effect : this.stingerPotionContents.getAllEffects()) {
+        if (this.isAlly(target)) return;
+        DamageSource source = this.damageSources().sting(this);
+        boolean hurt = target.hurt(source, (float) ((int) this.getAttributeValue(Attributes.ATTACK_DAMAGE)));
+        if (!hurt) return;
 
-                    livingTarget.addEffect(new MobEffectInstance(effect.getEffect(), effect.getDuration() / 4, effect.getAmplifier()), this);
-                }
-            }
-            // 只保留音效
-            this.playSound(SoundEvents.BEE_STING, 1.0F, 1.0F);
+        if (this.level() instanceof ServerLevel serverLevel) {
+            EnchantmentHelper.doPostAttackEffects(serverLevel, target, source);
         }
+        // 结算淬毒效果
+        if (this.stingerPotionContents != null && target instanceof LivingEntity living) {
+            for (MobEffectInstance effect : this.stingerPotionContents.getAllEffects()) {
+                living.addEffect(new MobEffectInstance(
+                        effect.getEffect(), effect.getDuration() / 4, effect.getAmplifier()), this);
+            }
+        }
+        this.playSound(SoundEvents.BEE_STING, 1.0F, 1.0F);
     }
+
+    // ==================== tick ====================
 
     @Override
     public void tick() {
         super.tick();
+        // 携带花蜜时，掉落粒子
         if (this.hasNectar() && this.getCropsGrownSincePollination() < 10 && this.random.nextFloat() < 0.05F) {
             for (int i = 0; i < this.random.nextInt(2) + 1; i++) {
-                this.spawnFluidParticle(
-                        this.level(), this.getX() - 0.3F, this.getX() + 0.3F, this.getZ() - 0.3F, this.getZ() + 0.3F, this.getY(0.5), ParticleTypes.FALLING_NECTAR
-                );
+                this.spawnFluidParticle(this.level(),
+                        this.getX() - 0.3F, this.getX() + 0.3F,
+                        this.getZ() - 0.3F, this.getZ() + 0.3F,
+                        this.getY(0.5), ParticleTypes.FALLING_NECTAR);
             }
         }
-
         this.updateRollAmount();
     }
 
-    private void spawnFluidParticle(
-            Level level, double startX, double endX, double startZ, double endZ, double posY, ParticleOptions particleOption
-    ) {
-        level.addParticle(
-                particleOption,
-                Mth.lerp(level.random.nextDouble(), startX, endX),
-                posY,
-                Mth.lerp(level.random.nextDouble(), startZ, endZ),
-                0.0,
-                0.0,
-                0.0
-        );
+    private void spawnFluidParticle(Level level, double startX, double endX, double startZ,
+                                    double endZ, double y, ParticleOptions particle) {
+        level.addParticle(particle,
+                Mth.lerp(level.random.nextDouble(), startX, endX), y,
+                Mth.lerp(level.random.nextDouble(), startZ, endZ), 0.0, 0.0, 0.0);
+    }
+
+    @Override
+    public void aiStep() {
+        super.aiStep();
+        if (this.level().isClientSide) return; // 仅服务端执行逻辑
+
+        // 更新各类倒计时
+        if (this.stayOutOfHiveCountdown > 0) this.stayOutOfHiveCountdown--;
+        if (this.remainingCooldownBeforeLocatingNewHive > 0) this.remainingCooldownBeforeLocatingNewHive--;
+        if (this.remainingCooldownBeforeLocatingNewFlower > 0) this.remainingCooldownBeforeLocatingNewFlower--;
+        if (this.attackCooldown > 0) this.attackCooldown--;
+        if (this.lungeTicks > 0) this.lungeTicks--;
+
+        // 突刺冲刺与伤害结算
+        if (this.lungeTicks > 0) {
+            // 突刺冲刺：给蜜蜂施加向目标方向的物理加速度
+            if (this.pendingTarget != null) {
+                Vec3 dir = this.pendingTarget.position().subtract(this.position()).normalize();
+                // 0.15 为冲刺力度，可以微调
+                this.setDeltaMovement(this.getDeltaMovement().scale(0.5).add(dir.scale(0.15)));
+                this.getLookControl().setLookAt(this.pendingTarget);
+            }
+
+            // 第 5 tick 造成伤害，判定范围放大到 4 格（平方 16.0），防止冲刺时脱靶
+            if (this.pendingTarget != null && this.lungeTicks == LUNGE_TICKS - IMPACT_TICK) {
+                if (this.pendingTarget.isAlive() && this.pendingTarget.distanceToSqr(this) < 16.0) {
+                    this.actualHurtTarget(this.pendingTarget);
+                }
+                this.pendingTarget = null; // 结算完毕
+            }
+        }
+
+        // 突刺期间播放翻滚动画
+        this.setRolling(this.lungeTicks > 0);
+
+        // 血量不满且有花蜜时，消耗花蜜回血
+        if (this.getHealth() < this.getMaxHealth() && this.hasNectar()) {
+            this.dropOffNectar();
+            this.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 400, 0));
+            this.playSound(SoundEvents.BEE_POLLINATE, 1.0F, 1.0F);
+            if (this.level() instanceof ServerLevel serverLevel) {
+                serverLevel.sendParticles(ParticleTypes.HEART,
+                        this.getX(), this.getY() + 0.5, this.getZ(), 5, 0.5, 0.5, 0.5, 0.1);
+            }
+        }
+
+        // 定期检查家是否存在，不存在就清空
+        if (this.tickCount % 20 == 0 && !this.isHiveValid()) {
+            this.hivePos = null;
+        }
+    }
+
+    @Override
+    protected void customServerAiStep() {
+        // 溺水伤害
+        if (this.isInWaterOrBubble()) {
+            this.underWaterTicks++;
+        } else {
+            this.underWaterTicks = 0;
+        }
+        if (this.underWaterTicks > 20) {
+            this.hurt(this.damageSources().drown(), 1.0F);
+        }
+
+        if (!this.hasNectar()) {
+            this.ticksWithoutNectarSinceExitingHive++;
+        }
+        this.updatePersistentAnger((ServerLevel) this.level(), false);
+        this.clearAllyAnger();
+    }
+
+    @Override
+    public boolean hurt(DamageSource source, float amount) {
+        if (this.isInvulnerableTo(source)) return false;
+        if (!this.level().isClientSide) this.beePollinateGoal.stopPollinating();
+        return super.hurt(source, amount);
+    }
+
+    // ==================== 状态 ====================
+
+    public boolean hasNectar() {
+        return this.getFlag(FLAG_HAS_NECTAR);
+    }
+
+    void setHasNectar(boolean value) {
+        if (value) this.resetTicksWithoutNectarSinceExitingHive();
+        this.setFlag(FLAG_HAS_NECTAR, value);
+    }
+
+    public boolean hasStung() {
+        return this.getFlag(FLAG_HAS_STUNG);
+    }
+
+    private void setHasStung(boolean value) {
+        this.setFlag(FLAG_HAS_STUNG, value);
+    }
+
+    private boolean isRolling() {
+        return this.getFlag(FLAG_ROLL);
+    }
+
+    private void setRolling(boolean value) {
+        this.setFlag(FLAG_ROLL, value);
+    }
+
+    private void setFlag(int flag, boolean value) {
+        byte flags = this.entityData.get(DATA_FLAGS_ID);
+        this.entityData.set(DATA_FLAGS_ID, (byte) (value ? flags | flag : flags & ~flag));
+    }
+
+    private boolean getFlag(int flag) {
+        return (this.entityData.get(DATA_FLAGS_ID) & flag) != 0;
+    }
+
+    public float getRollAmount(float partialTick) {
+        return Mth.lerp(partialTick, this.rollAmountO, this.rollAmount);
+    }
+
+    private void updateRollAmount() {
+        this.rollAmountO = this.rollAmount;
+        this.rollAmount = this.isRolling()
+                ? Math.min(1.0F, this.rollAmount + 0.2F)
+                : Math.max(0.0F, this.rollAmount - 0.24F);
+    }
+
+    public void dropOffNectar() {
+        this.setHasNectar(false);
+        this.resetNumCropsGrownSincePollination();
+    }
+
+    void resetTicksWithoutNectarSinceExitingHive() {
+        this.ticksWithoutNectarSinceExitingHive = 0;
+    }
+
+    int getCropsGrownSincePollination() {
+        return this.numCropsGrownSincePollination;
+    }
+
+    void incrementNumCropsGrownSincePollination() {
+        this.numCropsGrownSincePollination++;
+    }
+
+    private void resetNumCropsGrownSincePollination() {
+        this.numCropsGrownSincePollination = 0;
+    }
+
+    // ==================== 蜂巢 ====================
+
+    public void setStayOutOfHiveCountdown(int ticks) {
+        this.stayOutOfHiveCountdown = ticks;
+    }
+
+    public void setHivePos(BlockPos pos) {
+        this.hivePos = pos;
+    }
+
+    boolean wantsToEnterHive() {
+        if (this.stayOutOfHiveCountdown > 0
+                || this.beePollinateGoal.isPollinating()
+                || this.hasStung()
+                || this.getTarget() != null) {
+            return false;
+        }
+        boolean wants = this.ticksWithoutNectarSinceExitingHive > 3600
+                || this.level().isRaining()
+                || this.level().isNight()
+                || this.hasNectar();
+        return wants && !this.isHiveNearFire();
+    }
+
+    boolean doesHiveHaveSpace(BlockPos pos) {
+        return this.level().getBlockEntity(pos) instanceof GardenBeeNestBlockEntity hive && !hive.isFull();
+    }
+
+    boolean isHiveValid() {
+        if (this.hivePos == null || this.isTooFarAway(this.hivePos)) return false;
+        return this.level().getBlockEntity(this.hivePos) instanceof GardenBeeNestBlockEntity;
+    }
+
+    private boolean isHiveNearFire() {
+        if (this.hivePos == null) return false;
+        BlockEntity be = this.level().getBlockEntity(this.hivePos);
+        return be instanceof GardenBeeNestBlockEntity hive && hive.isFireNearby();
+    }
+
+    // ==================== 工具 ====================
+
+    boolean isTooFarAway(BlockPos pos) {
+        return !this.closerThan(pos, 32);
+    }
+
+    boolean closerThan(BlockPos pos, int distance) {
+        return pos.closerThan(this.blockPosition(), distance);
     }
 
     void pathfindRandomlyTowards(BlockPos pos) {
-        Vec3 vec3 = Vec3.atBottomCenterOf(pos);
-        int i = 0;
-        BlockPos blockpos = this.blockPosition();
-        int j = (int) vec3.y - blockpos.getY();
-        if (j > 2) {
-            i = 4;
-        } else if (j < -2) {
-            i = -4;
+        Vec3 target = Vec3.atBottomCenterOf(pos);
+        BlockPos here = this.blockPosition();
+        int yOffset = 0;
+        int dy = (int) target.y - here.getY();
+        if (dy > 2) yOffset = 4;
+        else if (dy < -2) yOffset = -4;
+
+        int xz = 6;
+        int y = 8;
+        int manhattan = here.distManhattan(pos);
+        if (manhattan < 15) {
+            xz = manhattan / 2;
+            y = manhattan / 2;
         }
 
-        int k = 6;
-        int l = 8;
-        int i1 = blockpos.distManhattan(pos);
-        if (i1 < 15) {
-            k = i1 / 2;
-            l = i1 / 2;
+        Vec3 random = AirRandomPos.getPosTowards(this, xz, y, yOffset, target,
+                (float) (Math.PI / 10));
+        if (random != null) {
+            this.getNavigation().setMaxVisitedNodesMultiplier(0.5F);
+            this.getNavigation().moveTo(random.x, random.y, random.z, 1.0);
         }
+    }
 
-        Vec3 vec31 = AirRandomPos.getPosTowards(this, k, l, i, vec3, (float) (Math.PI / 10));
-        if (vec31 != null) {
-            this.navigation.setMaxVisitedNodesMultiplier(0.5F);
-            this.navigation.moveTo(vec31.x, vec31.y, vec31.z, 1.0);
-        }
+    boolean isFlowerValid(BlockPos pos) {
+        return this.level().isLoaded(pos) && this.level().getBlockState(pos).is(BlockTags.FLOWERS);
     }
 
     @Nullable
@@ -374,84 +604,11 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
         return this.savedFlowerPos != null;
     }
 
-    public void setSavedFlowerPos(BlockPos savedFlowerPos) {
-        this.savedFlowerPos = savedFlowerPos;
+    public void setSavedFlowerPos(BlockPos pos) {
+        this.savedFlowerPos = pos;
     }
 
-    @VisibleForDebug
-    public int getTravellingTicks() {
-        return Math.max(this.goToHiveGoal.travellingTicks, this.goToKnownFlowerGoal.travellingTicks);
-    }
-
-    @VisibleForDebug
-    public List<BlockPos> getBlacklistedHives() {
-        return this.goToHiveGoal.blacklistedTargets;
-    }
-
-    private boolean isTiredOfLookingForNectar() {
-        return this.ticksWithoutNectarSinceExitingHive > 3600;
-    }
-
-    boolean wantsToEnterHive() {
-        if (this.stayOutOfHiveCountdown <= 0 && !this.beePollinateGoal.isPollinating() && !this.hasStung() && this.getTarget() == null) {
-            boolean flag = this.isTiredOfLookingForNectar() || this.level().isRaining() || this.level().isNight() || this.hasNectar();
-            return flag && !this.isHiveNearFire();
-        } else {
-            return false;
-        }
-    }
-
-    public void setStayOutOfHiveCountdown(int stayOutOfHiveCountdown) {
-        this.stayOutOfHiveCountdown = stayOutOfHiveCountdown;
-    }
-
-    public float getRollAmount(float partialTick) {
-        return Mth.lerp(partialTick, this.rollAmountO, this.rollAmount);
-    }
-
-    private void updateRollAmount() {
-        this.rollAmountO = this.rollAmount;
-        if (this.isRolling()) {
-            this.rollAmount = Math.min(1.0F, this.rollAmount + 0.2F);
-        } else {
-            this.rollAmount = Math.max(0.0F, this.rollAmount - 0.24F);
-        }
-    }
-
-    @Override
-    protected void customServerAiStep() {
-
-        if (this.isInWaterOrBubble()) {
-            this.underWaterTicks++;
-        } else {
-            this.underWaterTicks = 0;
-        }
-
-        if (this.underWaterTicks > 20) {
-            this.hurt(this.damageSources().drown(), 1.0F);
-        }
-
-        if (!this.hasNectar()) {
-            this.ticksWithoutNectarSinceExitingHive++;
-        }
-
-        if (!this.level().isClientSide) {
-            this.updatePersistentAnger((ServerLevel) this.level(), false);
-        }
-    }
-
-    public void resetTicksWithoutNectarSinceExitingHive() {
-        this.ticksWithoutNectarSinceExitingHive = 0;
-    }
-
-    private boolean isHiveNearFire() {
-        if (this.hivePos == null) {
-            return false;
-        } else {
-            BlockEntity blockentity = this.level().getBlockEntity(this.hivePos);
-            return blockentity instanceof GardenBeeNestBlockEntity && ((GardenBeeNestBlockEntity) blockentity).isFireNearby();
-        }
-    }
+    // ==================== NeutralMob ====================
 
     @Override
     public int getRemainingPersistentAngerTime() {
@@ -479,185 +636,52 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
         this.setRemainingPersistentAngerTime(PERSISTENT_ANGER_TIME.sample(this.random));
     }
 
-    private boolean doesHiveHaveSpace(BlockPos hivePos) {
-        BlockEntity blockentity = this.level().getBlockEntity(hivePos);
-        return blockentity instanceof GardenBeeNestBlockEntity ? !((GardenBeeNestBlockEntity) blockentity).isFull() : false;
-    }
-
-    @VisibleForDebug
-    public boolean hasHive() {
-        return this.hivePos != null;
-    }
-
-    @Nullable
-    @VisibleForDebug
-    public BlockPos getHivePos() {
-        return this.hivePos;
-    }
-
-    @VisibleForDebug
-    public GoalSelector getGoalSelector() {
-        return this.goalSelector;
-    }
+    // ==================== NBT ====================
 
     @Override
-    protected void sendDebugPackets() {
-        super.sendDebugPackets();
-        //DebugPackets.sendBeeInfo(this);
-    }
+    public void addAdditionalSaveData(CompoundTag tag) {
+        super.addAdditionalSaveData(tag);
+        if (this.hivePos != null) tag.put("hive_pos", NbtUtils.writeBlockPos(this.hivePos));
+        if (this.savedFlowerPos != null) tag.put("flower_pos", NbtUtils.writeBlockPos(this.savedFlowerPos));
 
-    int getCropsGrownSincePollination() {
-        return this.numCropsGrownSincePollination;
-    }
+        tag.putBoolean("HasNectar", this.hasNectar());
+        tag.putBoolean("HasStung", this.hasStung());
+        tag.putInt("TicksSincePollination", this.ticksWithoutNectarSinceExitingHive);
+        tag.putInt("CannotEnterHiveTicks", this.stayOutOfHiveCountdown);
+        tag.putInt("CropsGrownSincePollination", this.numCropsGrownSincePollination);
+        this.addPersistentAngerSaveData(tag);
 
-    private void resetNumCropsGrownSincePollination() {
-        this.numCropsGrownSincePollination = 0;
-    }
-
-    void incrementNumCropsGrownSincePollination() {
-        this.numCropsGrownSincePollination++;
-    }
-
-    @Override
-    public void aiStep() {
-        super.aiStep();
-        if (!this.level().isClientSide) {
-            if (this.stayOutOfHiveCountdown > 0) this.stayOutOfHiveCountdown--;
-            if (this.remainingCooldownBeforeLocatingNewHive > 0) this.remainingCooldownBeforeLocatingNewHive--;
-            if (this.remainingCooldownBeforeLocatingNewFlower > 0) this.remainingCooldownBeforeLocatingNewFlower--;
-
-            // 【新增】处理突刺冷却与伤害判定
-            if (this.attackCooldown > 0) this.attackCooldown--;
-            if (this.lungeTicks > 0) this.lungeTicks--;
-
-            if (this.pendingTarget != null && this.lungeTicks == LUNGE_TICKS - IMPACT_TICK) {
-                if (this.pendingTarget.isAlive() && this.pendingTarget.distanceToSqr(this) < 9.0) {
-                    this.actualHurtTarget(this.pendingTarget); // 造成真实伤害
-                }
-                this.pendingTarget = null; // 结算完毕
-            }
-
-            // 【修改】完全由 lungeTicks 驱动翻滚，不再受距离限制
-            this.setRolling(this.lungeTicks > 0);
-
-            // 【新增】血量不满且携带花蜜时，消耗花蜜进行自我治疗
-            if (this.getHealth() < this.getMaxHealth() && this.hasNectar()) {
-                this.dropOffNectar(); // 消耗花蜜，同时会重置催熟进度
-                // 给予 20 秒（400 tick）的生命恢复 I 效果
-                this.addEffect(new MobEffectInstance(MobEffects.REGENERATION, 400, 0));
-
-                // 播放一点音效和粒子反馈，告诉玩家它吃蜜了
-                this.playSound(SoundEvents.BEE_POLLINATE, 1.0F, 1.0F);
-                if (this.level() instanceof ServerLevel serverLevel) {
-                    serverLevel.sendParticles(ParticleTypes.HEART, this.getX(), this.getY() + 0.5, this.getZ(), 5, 0.5, 0.5, 0.5, 0.1);
-                }
-            }
-
-            if (this.tickCount % 20 == 0 && !this.isHiveValid()) {
-                this.hivePos = null;
-            }
+        // 保存淬毒药水效果
+        if (this.stingerPotionContents != null) {
+            PotionContents.CODEC.encodeStart(NbtOps.INSTANCE, this.stingerPotionContents)
+                    .result().ifPresent(data -> tag.put("StingerPotion", data));
         }
     }
 
-    boolean isHiveValid() {
-        if (!this.hasHive()) {
-            return false;
-        } else if (this.isTooFarAway(this.hivePos)) {
-            return false;
-        } else {
-            BlockEntity blockentity = this.level().getBlockEntity(this.hivePos);
-            return blockentity instanceof GardenBeeNestBlockEntity;
+    @Override
+    public void readAdditionalSaveData(CompoundTag tag) {
+        this.hivePos = NbtUtils.readBlockPos(tag, "hive_pos").orElse(null);
+        this.savedFlowerPos = NbtUtils.readBlockPos(tag, "flower_pos").orElse(null);
+        super.readAdditionalSaveData(tag);
+
+        this.setHasNectar(tag.getBoolean("HasNectar"));
+        this.setHasStung(tag.getBoolean("HasStung"));
+        this.ticksWithoutNectarSinceExitingHive = tag.getInt("TicksSincePollination");
+        this.stayOutOfHiveCountdown = tag.getInt("CannotEnterHiveTicks");
+        this.numCropsGrownSincePollination = tag.getInt("CropsGrownSincePollination");
+        this.readPersistentAngerSaveData(this.level(), tag);
+
+        // 读取淬毒药水效果
+        if (tag.contains("StingerPotion")) {
+            PotionContents.CODEC.parse(NbtOps.INSTANCE, tag.get("StingerPotion"))
+                    .result().ifPresent(contents -> this.stingerPotionContents = contents);
         }
     }
 
-    public boolean hasNectar() {
-        return this.getFlag(8);
-    }
-
-    void setHasNectar(boolean hasNectar) {
-        if (hasNectar) {
-            this.resetTicksWithoutNectarSinceExitingHive();
-        }
-
-        this.setFlag(8, hasNectar);
-    }
-
-    public boolean hasStung() {
-        return this.getFlag(4);
-    }
-
-    private void setHasStung(boolean hasStung) {
-        this.setFlag(4, hasStung);
-    }
-
-    private boolean isRolling() {
-        return this.getFlag(2);
-    }
-
-    private void setRolling(boolean isRolling) {
-        this.setFlag(2, isRolling);
-    }
-
-    boolean isTooFarAway(BlockPos pos) {
-        return !this.closerThan(pos, 32);
-    }
-
-    private void setFlag(int flagId, boolean value) {
-        if (value) {
-            this.entityData.set(DATA_FLAGS_ID, (byte) (this.entityData.get(DATA_FLAGS_ID) | flagId));
-        } else {
-            this.entityData.set(DATA_FLAGS_ID, (byte) (this.entityData.get(DATA_FLAGS_ID) & ~flagId));
-        }
-    }
-
-    private boolean getFlag(int flagId) {
-        return (this.entityData.get(DATA_FLAGS_ID) & flagId) != 0;
-    }
-
-    public static AttributeSupplier.Builder createAttributes() {
-        return Mob.createMobAttributes()
-                .add(Attributes.MAX_HEALTH, 20.0)
-                .add(Attributes.FLYING_SPEED, 0.6F)
-                .add(Attributes.MOVEMENT_SPEED, 0.3F)
-                .add(Attributes.ATTACK_DAMAGE, 4.0)
-                .add(Attributes.FOLLOW_RANGE, 48.0);
-    }
+    // ==================== 其它 ====================
 
     @Override
-    protected PathNavigation createNavigation(Level p_level) {
-        FlyingPathNavigation flyingpathnavigation = new FlyingPathNavigation(this, p_level) {
-            @Override
-            public boolean isStableDestination(BlockPos p_27947_) {
-                return !this.level.getBlockState(p_27947_.below()).isAir();
-            }
-
-            @Override
-            public void tick() {
-                if (!GardenBee.this.beePollinateGoal.isPollinating()) {
-                    super.tick();
-                }
-            }
-        };
-        flyingpathnavigation.setCanOpenDoors(false);
-        flyingpathnavigation.setCanFloat(false);
-        flyingpathnavigation.setCanPassDoors(true);
-        return flyingpathnavigation;
-    }
-
-    /**
-     * Checks if the parameter is an item which this animal can be fed to breed it (wheat, carrots or seeds depending on the animal type)
-     */
-    @Override
-    public boolean isFood(ItemStack stack) {
-        return stack.is(ItemTags.BEE_FOOD);
-    }
-
-    boolean isFlowerValid(BlockPos pos) {
-        return this.level().isLoaded(pos) && this.level().getBlockState(pos).is(BlockTags.FLOWERS);
-    }
-
-    @Override
-    protected void playStepSound(BlockPos pos, BlockState block) {
+    protected void playStepSound(BlockPos pos, BlockState state) {
     }
 
     @Override
@@ -666,7 +690,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
     }
 
     @Override
-    protected SoundEvent getHurtSound(DamageSource damageSource) {
+    protected SoundEvent getHurtSound(DamageSource source) {
         return SoundEvents.BEE_HURT;
     }
 
@@ -681,6 +705,7 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
     }
 
     @Nullable
+    @Override
     public GardenBee getBreedOffspring(ServerLevel level, AgeableMob otherParent) {
         return EntityRegister.GARDEN_BEE.get().create(level);
     }
@@ -699,30 +724,14 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
         return !this.onGround();
     }
 
-    public void dropOffNectar() {
-        this.setHasNectar(false);
-        this.resetNumCropsGrownSincePollination();
-    }
-
-    /**
-     * Called when the entity is attacked.
-     */
-    @Override
-    public boolean hurt(DamageSource source, float amount) {
-        if (this.isInvulnerableTo(source)) {
-            return false;
-        } else {
-            if (!this.level().isClientSide) {
-                this.beePollinateGoal.stopPollinating();
-            }
-
-            return super.hurt(source, amount);
-        }
-    }
-
     @Override
     @Deprecated
     protected void jumpInLiquid(TagKey<Fluid> fluidTag) {
+        this.jumpInLiquidInternal();
+    }
+
+    @Override
+    public void jumpInFluid(FluidType type) {
         this.jumpInLiquidInternal();
     }
 
@@ -731,516 +740,634 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
     }
 
     @Override
-    public void jumpInFluid(net.neoforged.neoforge.fluids.FluidType type) {
-        this.jumpInLiquidInternal();
-    }
-
-    @Override
     public Vec3 getLeashOffset() {
-        return new Vec3(0.0, (double) (0.5F * this.getEyeHeight()), (double) (this.getBbWidth() * 0.2F));
+        return new Vec3(0.0, 0.5F * this.getEyeHeight(), this.getBbWidth() * 0.2F);
     }
 
-    boolean closerThan(BlockPos pos, int distance) {
-        return pos.closerThan(this.blockPosition(), (double) distance);
-    }
+    // ==================== 内部 Goal ====================
 
-    public void setHivePos(BlockPos hivePos) {
-        this.hivePos = hivePos;
-    }
+    static class GardenBeeAttackGoal extends MeleeAttackGoal {
+        private final GardenBee bee;
 
-    abstract class BaseBeeGoal extends Goal {
-        public abstract boolean canBeeUse();
-
-        public abstract boolean canBeeContinueToUse();
-
-        @Override
-        public boolean canUse() {
-            return this.canBeeUse() && !GardenBee.this.isAngry();
-        }
-
-        @Override
-        public boolean canContinueToUse() {
-            return this.canBeeContinueToUse() && !GardenBee.this.isAngry();
-        }
-    }
-
-    class BeeAttackGoal extends MeleeAttackGoal {
-        BeeAttackGoal(PathfinderMob mob, double speedModifier, boolean followingTargetEvenIfNotSeen) {
-            super(mob, speedModifier, followingTargetEvenIfNotSeen);
+        GardenBeeAttackGoal(GardenBee bee) {
+            super(bee, 1.4F, true);
+            this.bee = bee;
         }
 
         @Override
         public boolean canUse() {
-            return super.canUse()
-                    && GardenBee.this.isAngry()
-                    && GardenBee.this.getHealth() > GardenBee.this.getMaxHealth() * 0.3F;
+            return super.canUse() && canFight();
         }
 
         @Override
         public boolean canContinueToUse() {
-            return super.canContinueToUse()
-                    && GardenBee.this.isAngry()
-                    && GardenBee.this.getHealth() > GardenBee.this.getMaxHealth() * 0.3F;
+            return super.canContinueToUse() && canFight();
         }
 
         @Override
-        protected boolean canPerformAttack(LivingEntity entity) {
-            // 如果蜜蜂自己的 40 tick 冷却没转好，直接拒绝，原版就不会执行假动作或挥手
-            if (GardenBee.this.attackCooldown > 0) {
+        protected boolean canPerformAttack(LivingEntity target) {
+            if (this.bee.isAlly(target)) return false;
+            // 如果处于冷却，拒绝
+            if (this.bee.attackCooldown > 0) {
                 return false;
             }
-            // 冷却好了，再交给原版去判断距离和视线
-            return super.canPerformAttack(entity);
+            // 距离在 4 格内（平方16.0）且有视线，直接起手！
+            return this.bee.distanceToSqr(target) < 16.0
+                    && this.bee.hasLineOfSight(target);
+        }
+
+        private boolean canFight() {
+            // 愤怒且血量大于 30% 才会战斗
+            return this.bee.isAngry() && this.bee.getHealth() > this.bee.getMaxHealth() * 0.3F;
         }
     }
 
-    static class BeeBecomeAngryTargetGoal extends NearestAttackableTargetGoal<Player> {
-        BeeBecomeAngryTargetGoal(GardenBee mob) {
-            super(mob, Player.class, 10, true, false, mob::isAngryAt);
-        }
+    static class GardenBeeHurtByOtherGoal extends HurtByTargetGoal {
+        private final GardenBee bee;
 
-        @Override
-        public boolean canUse() {
-            return this.beeCanTarget() && super.canUse();
+        GardenBeeHurtByOtherGoal(GardenBee bee) {
+            super(bee);
+            this.bee = bee;
         }
 
         @Override
         public boolean canContinueToUse() {
-            boolean flag = this.beeCanTarget();
-            if (flag && this.mob.getTarget() != null) {
-                return super.canContinueToUse();
+            return this.bee.isAngry() && super.canContinueToUse();
+        }
+
+        @Override
+        protected void alertOther(Mob mob, LivingEntity target) {
+            if (this.bee.isAlly(target)) return;
+            if (mob instanceof GardenBee other && other.hasLineOfSight(target)) {
+                mob.setTarget(target);
+            }
+        }
+    }
+
+    static class GardenBeeWanderGoal extends Goal {
+        static final int WANDER_THRESHOLD = 22;
+        private final GardenBee bee;
+
+        GardenBeeWanderGoal(GardenBee bee) {
+            this.bee = bee;
+            this.setFlags(EnumSet.of(Flag.MOVE));
+        }
+
+        @Override
+        public boolean canUse() {
+            return this.bee.getNavigation().isDone() && this.bee.getRandom().nextInt(10) == 0;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return this.bee.getNavigation().isInProgress();
+        }
+
+        @Override
+        public void start() {
+            Vec3 pos = this.findPos();
+            if (pos != null) {
+                this.bee.getNavigation().moveTo(
+                        this.bee.getNavigation().createPath(BlockPos.containing(pos), 1), 1.0);
+            }
+        }
+
+        @Nullable
+        private Vec3 findPos() {
+            Vec3 direction;
+            // 如果离家太远，就向家飞；否则顺着视线方向闲逛
+            if (this.bee.isHiveValid() && !this.bee.closerThan(this.bee.hivePos, WANDER_THRESHOLD)) {
+                direction = Vec3.atCenterOf(this.bee.hivePos).subtract(this.bee.position()).normalize();
             } else {
-                this.targetMob = null;
-                return false;
+                direction = this.bee.getViewVector(0.0F);
             }
-        }
 
-        private boolean beeCanTarget() {
-            GardenBee bee = (GardenBee) this.mob;
-            return bee.isAngry() && !bee.hasStung();
+            Vec3 pos = HoverRandomPos.getPos(this.bee, 8, 7,
+                    direction.x, direction.z, (float) (Math.PI / 2), 3, 1);
+            return pos != null ? pos : AirAndWaterRandomPos.getPos(this.bee, 8, 4, -2,
+                    direction.x, direction.z, (float) (Math.PI / 2));
         }
     }
 
-    class BeeEnterHiveGoal extends GardenBee.BaseBeeGoal {
+    /** 花园蜂 Goal 的公共门面：愤怒时统一停用。 */
+    abstract static class GardenBeeBaseGoal extends Goal {
+        protected final GardenBee bee;
+
+        protected GardenBeeBaseGoal(GardenBee bee) {
+            this.bee = bee;
+        }
+
+        protected abstract boolean canBeeUse();
+
+        protected abstract boolean canBeeContinueToUse();
+
         @Override
-        public boolean canBeeUse() {
-            if (GardenBee.this.hasHive()
-                    && GardenBee.this.wantsToEnterHive()
-                    && GardenBee.this.hivePos.closerToCenterThan(GardenBee.this.position(), 2.0)
-                    && GardenBee.this.level().getBlockEntity(GardenBee.this.hivePos) instanceof GardenBeeNestBlockEntity beehiveblockentity) {
-                if (!beehiveblockentity.isFull()) {
-                    return true;
-                }
-
-                GardenBee.this.hivePos = null;
-            }
-
-            return false;
+        public final boolean canUse() {
+            return !this.bee.isAngry() && this.canBeeUse();
         }
 
         @Override
-        public boolean canBeeContinueToUse() {
+        public final boolean canContinueToUse() {
+            return !this.bee.isAngry() && this.canBeeContinueToUse();
+        }
+    }
+
+    static class GardenBeeLocateHiveGoal extends GardenBeeBaseGoal {
+        GardenBeeLocateHiveGoal(GardenBee bee) {
+            super(bee);
+        }
+
+        @Override
+        protected boolean canBeeUse() {
+            return this.bee.remainingCooldownBeforeLocatingNewHive == 0
+                    && this.bee.hivePos == null
+                    && this.bee.wantsToEnterHive();
+        }
+
+        @Override
+        protected boolean canBeeContinueToUse() {
             return false;
         }
 
         @Override
         public void start() {
-            if (GardenBee.this.level().getBlockEntity(GardenBee.this.hivePos) instanceof GardenBeeNestBlockEntity beehiveblockentity) {
-                beehiveblockentity.addOccupant(GardenBee.this);
+            this.bee.remainingCooldownBeforeLocatingNewHive = 200;
+            List<BlockPos> hives = findNearbyHivesWithSpace();
+            // 避开黑名单里的蜂巢（之前卡住过的）
+            for (BlockPos pos : hives) {
+                if (!this.bee.goToHiveGoal.isTargetBlacklisted(pos)) {
+                    this.bee.hivePos = pos;
+                    return;
+                }
+            }
+            if (!hives.isEmpty()) {
+                this.bee.goToHiveGoal.clearBlacklist();
+                this.bee.hivePos = hives.get(0);
+            }
+        }
+
+        private List<BlockPos> findNearbyHivesWithSpace() {
+            BlockPos origin = this.bee.blockPosition();
+            PoiManager poiManager = ((ServerLevel) this.bee.level()).getPoiManager();
+            return poiManager.getInRange(
+                            poi -> poi.value() == PoiRegister.GARDEN_BEE_NEST.get(),
+                            origin, 20, PoiManager.Occupancy.ANY)
+                    .map(PoiRecord::getPos)
+                    .filter(this.bee::doesHiveHaveSpace)
+                    .sorted(Comparator.comparingDouble(pos -> pos.distSqr(origin)))
+                    .toList();
+        }
+    }
+
+    static class GardenBeeBecomeAngryTargetGoal extends NearestAttackableTargetGoal<Player> {
+        private final GardenBee bee;
+
+        GardenBeeBecomeAngryTargetGoal(GardenBee bee) {
+            super(bee, Player.class, 10, true, false,
+                    target -> bee.isAngryAt(target) && !bee.isAlly(target));
+            this.bee = bee;
+        }
+
+        @Override
+        public boolean canUse() {
+            return this.bee.isAngry() && !this.bee.hasStung() && super.canUse();
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            if (this.bee.isAngry() && !this.bee.hasStung() && this.mob.getTarget() != null) {
+                return super.canContinueToUse();
+            }
+            this.targetMob = null;
+            return false;
+        }
+    }
+
+    static class GardenBeeEnterHiveGoal extends GardenBeeBaseGoal {
+        GardenBeeEnterHiveGoal(GardenBee bee) {
+            super(bee);
+        }
+
+        @Override
+        protected boolean canBeeUse() {
+            if (this.bee.hivePos == null || !this.bee.wantsToEnterHive()) return false;
+            if (!this.bee.hivePos.closerToCenterThan(this.bee.position(), 2.0)) return false;
+            if (!(this.bee.level().getBlockEntity(this.bee.hivePos) instanceof GardenBeeNestBlockEntity hive)) {
+                this.bee.hivePos = null;
+                return false;
+            }
+            if (!hive.isFull()) return true;
+            this.bee.hivePos = null;
+            return false;
+        }
+
+        @Override
+        protected boolean canBeeContinueToUse() {
+            return false;
+        }
+
+        @Override
+        public void start() {
+            if (this.bee.level().getBlockEntity(this.bee.hivePos) instanceof GardenBeeNestBlockEntity hive) {
+                hive.addOccupant(this.bee);
             }
         }
     }
 
-    @VisibleForDebug
-    public class BeeGoToHiveGoal extends GardenBee.BaseBeeGoal {
-        public static final int MAX_TRAVELLING_TICKS = 600;
-        int travellingTicks = GardenBee.this.level().random.nextInt(10);
-        private static final int MAX_BLACKLISTED_TARGETS = 3;
-        final List<BlockPos> blacklistedTargets = Lists.newArrayList();
-        @Nullable
-        private Path lastPath;
-        private static final int TICKS_BEFORE_HIVE_DROP = 60;
+    static class GardenBeeGoToKnownFlowerGoal extends GardenBeeBaseGoal {
+        static final int MAX_TRAVELLING_TICKS = 600;
+        int travellingTicks = this.bee.level().random.nextInt(10);
+
+        GardenBeeGoToKnownFlowerGoal(GardenBee bee) {
+            super(bee);
+            this.setFlags(EnumSet.of(Flag.MOVE));
+        }
+
+        @Override
+        protected boolean canBeeUse() {
+            return this.bee.savedFlowerPos != null
+                    && !this.bee.hasRestriction()
+                    && this.bee.ticksWithoutNectarSinceExitingHive > 2400
+                    && this.bee.isFlowerValid(this.bee.savedFlowerPos)
+                    && !this.bee.closerThan(this.bee.savedFlowerPos, 2);
+        }
+
+        @Override
+        protected boolean canBeeContinueToUse() {
+            return canBeeUse();
+        }
+
+        @Override
+        public void start() {
+            this.travellingTicks = 0;
+        }
+
+        @Override
+        public void stop() {
+            this.travellingTicks = 0;
+            this.bee.getNavigation().stop();
+            this.bee.getNavigation().resetMaxVisitedNodesMultiplier();
+        }
+
+        @Override
+        public void tick() {
+            if (this.bee.savedFlowerPos == null) return;
+            if (++this.travellingTicks > this.adjustedTickDelay(MAX_TRAVELLING_TICKS)) {
+                this.bee.savedFlowerPos = null;
+            } else if (!this.bee.getNavigation().isInProgress()) {
+                if (this.bee.isTooFarAway(this.bee.savedFlowerPos)) {
+                    this.bee.savedFlowerPos = null;
+                } else {
+                    this.bee.pathfindRandomlyTowards(this.bee.savedFlowerPos);
+                }
+            }
+        }
+    }
+
+    static class GardenBeeLookControl extends LookControl {
+        private final GardenBee bee;
+
+        GardenBeeLookControl(GardenBee bee) {
+            super(bee);
+            this.bee = bee;
+        }
+
+        @Override
+        public void tick() {
+            // 愤怒时不要乱看，盯着目标
+            if (!this.bee.isAngry()) super.tick();
+        }
+
+        @Override
+        protected boolean resetXRotOnTick() {
+            return !this.bee.beePollinateGoal.isPollinating();
+        }
+    }
+
+    static class GardenBeeGrowCropGoal extends GardenBeeBaseGoal {
+        static final int MAX_CROPS_GROWN = 10;
+        static final int GROW_CHANCE = 30;
+
+        GardenBeeGrowCropGoal(GardenBee bee) {
+            super(bee);
+        }
+
+        @Override
+        protected boolean canBeeUse() {
+            return this.bee.getCropsGrownSincePollination() < MAX_CROPS_GROWN
+                    && this.bee.getRandom().nextFloat() >= 0.3F
+                    && this.bee.hasNectar()
+                    && this.bee.isHiveValid();
+        }
+
+        @Override
+        protected boolean canBeeContinueToUse() {
+            return canBeeUse();
+        }
+
+        @Override
+        public void tick() {
+            if (this.bee.getRandom().nextInt(this.adjustedTickDelay(GROW_CHANCE)) != 0) return;
+            // 尝试催熟下方 1~2 格的作物
+            for (int i = 1; i <= 2; i++) {
+                BlockPos pos = this.bee.blockPosition().below(i);
+                BlockState state = this.bee.level().getBlockState(pos);
+                Block block = state.getBlock();
+                BlockState grown = null;
+
+                if (state.is(BlockTags.BEE_GROWABLES)) {
+                    if (block instanceof CropBlock crop) {
+                        if (!crop.isMaxAge(state)) {
+                            grown = crop.getStateForAge(crop.getAge(state) + 1);
+                        }
+                    } else if (block instanceof StemBlock) {
+                        int age = state.getValue(StemBlock.AGE);
+                        if (age < 7) grown = state.setValue(StemBlock.AGE, age + 1);
+                    } else if (state.is(Blocks.SWEET_BERRY_BUSH)) {
+                        int age = state.getValue(SweetBerryBushBlock.AGE);
+                        if (age < 3) grown = state.setValue(SweetBerryBushBlock.AGE, age + 1);
+                    } else if (state.is(Blocks.CAVE_VINES) || state.is(Blocks.CAVE_VINES_PLANT)) {
+                        ((BonemealableBlock) block).performBonemeal(
+                                (ServerLevel) this.bee.level(), this.bee.getRandom(), pos, state);
+                    }
+
+                    if (grown != null) {
+                        this.bee.level().levelEvent(2011, pos, 15); // 绿色粒子效果
+                        this.bee.level().setBlockAndUpdate(pos, grown);
+                        this.bee.incrementNumCropsGrownSincePollination();
+                    }
+                }
+            }
+        }
+    }
+
+    static class GardenBeeGoToHiveGoal extends GardenBeeBaseGoal {
+        static final int MAX_TRAVELLING_TICKS = 600;
+        static final int MAX_BLACKLISTED_TARGETS = 3;
+        static final int TICKS_BEFORE_HIVE_DROP = 60;
+
+        int travellingTicks = this.bee.level().random.nextInt(10);
+        final List<BlockPos> blacklistedTargets = new ArrayList<>();
         private int ticksStuck;
+        @Nullable private Path lastPath;
 
-        BeeGoToHiveGoal() {
-            this.setFlags(EnumSet.of(Goal.Flag.MOVE));
+        GardenBeeGoToHiveGoal(GardenBee bee) {
+            super(bee);
+            this.setFlags(EnumSet.of(Flag.MOVE));
         }
 
         @Override
-        public boolean canBeeUse() {
-            return GardenBee.this.hivePos != null
-                    && !GardenBee.this.hasRestriction()
-                    && GardenBee.this.wantsToEnterHive()
-                    && !this.hasReachedTarget(GardenBee.this.hivePos)
-                    && GardenBee.this.level().getBlockState(GardenBee.this.hivePos).is(BlockRegister.GARDEN_BEE_NEST);
+        protected boolean canBeeUse() {
+            return this.bee.hivePos != null
+                    && !this.bee.hasRestriction()
+                    && this.bee.wantsToEnterHive()
+                    && !hasReachedTarget(this.bee.hivePos)
+                    && this.bee.level().getBlockState(this.bee.hivePos).is(BlockRegister.GARDEN_BEE_NEST);
         }
 
         @Override
-        public boolean canBeeContinueToUse() {
-            return this.canBeeUse();
+        protected boolean canBeeContinueToUse() {
+            return canBeeUse();
         }
 
         @Override
         public void start() {
             this.travellingTicks = 0;
             this.ticksStuck = 0;
-            super.start();
         }
 
         @Override
         public void stop() {
             this.travellingTicks = 0;
             this.ticksStuck = 0;
-            GardenBee.this.navigation.stop();
-            GardenBee.this.navigation.resetMaxVisitedNodesMultiplier();
+            this.bee.getNavigation().stop();
+            this.bee.getNavigation().resetMaxVisitedNodesMultiplier();
         }
 
         @Override
         public void tick() {
-            if (GardenBee.this.hivePos != null) {
-                this.travellingTicks++;
-                if (this.travellingTicks > this.adjustedTickDelay(600)) {
-                    this.dropAndBlacklistHive();
-                } else if (!GardenBee.this.navigation.isInProgress()) {
-                    if (!GardenBee.this.closerThan(GardenBee.this.hivePos, 16)) {
-                        if (GardenBee.this.isTooFarAway(GardenBee.this.hivePos)) {
-                            this.dropHive();
-                        } else {
-                            GardenBee.this.pathfindRandomlyTowards(GardenBee.this.hivePos);
-                        }
-                    } else {
-                        boolean flag = this.pathfindDirectlyTowards(GardenBee.this.hivePos);
-                        if (!flag) {
-                            this.dropAndBlacklistHive();
-                        } else if (this.lastPath != null && GardenBee.this.navigation.getPath().sameAs(this.lastPath)) {
-                            this.ticksStuck++;
-                            if (this.ticksStuck > 60) {
-                                this.dropHive();
-                                this.ticksStuck = 0;
-                            }
-                        } else {
-                            this.lastPath = GardenBee.this.navigation.getPath();
-                        }
-                    }
-                }
-            }
-        }
+            if (this.bee.hivePos == null) return;
 
-        private boolean pathfindDirectlyTowards(BlockPos pos) {
-            GardenBee.this.navigation.setMaxVisitedNodesMultiplier(10.0F);
-            GardenBee.this.navigation.moveTo((double) pos.getX(), (double) pos.getY(), (double) pos.getZ(), 2, 1.0);
-            return GardenBee.this.navigation.getPath() != null && GardenBee.this.navigation.getPath().canReach();
+            if (++this.travellingTicks > this.adjustedTickDelay(MAX_TRAVELLING_TICKS)) {
+                dropAndBlacklistHive();
+                return;
+            }
+            if (this.bee.getNavigation().isInProgress()) return;
+
+            if (!this.bee.closerThan(this.bee.hivePos, 16)) {
+                if (this.bee.isTooFarAway(this.bee.hivePos)) {
+                    dropHive();
+                } else {
+                    this.bee.pathfindRandomlyTowards(this.bee.hivePos);
+                }
+                return;
+            }
+
+            if (!pathfindDirectlyTowards(this.bee.hivePos)) {
+                dropAndBlacklistHive();
+                return;
+            }
+            Path path = this.bee.getNavigation().getPath();
+            // 检测是否卡在同一个路径上（未移动）
+            if (this.lastPath != null && path != null && path.sameAs(this.lastPath)) {
+                if (++this.ticksStuck > TICKS_BEFORE_HIVE_DROP) {
+                    dropHive();
+                    this.ticksStuck = 0;
+                }
+            } else {
+                this.lastPath = path;
+            }
         }
 
         boolean isTargetBlacklisted(BlockPos pos) {
             return this.blacklistedTargets.contains(pos);
         }
 
-        private void blacklistTarget(BlockPos pos) {
-            this.blacklistedTargets.add(pos);
-
-            while (this.blacklistedTargets.size() > 3) {
-                this.blacklistedTargets.remove(0);
-            }
-        }
-
         void clearBlacklist() {
             this.blacklistedTargets.clear();
         }
 
-        private void dropAndBlacklistHive() {
-            if (GardenBee.this.hivePos != null) {
-                this.blacklistTarget(GardenBee.this.hivePos);
-            }
+        private boolean pathfindDirectlyTowards(BlockPos pos) {
+            this.bee.getNavigation().setMaxVisitedNodesMultiplier(10.0F);
+            this.bee.getNavigation().moveTo(pos.getX(), pos.getY(), pos.getZ(), 2, 1.0);
+            Path path = this.bee.getNavigation().getPath();
+            return path != null && path.canReach();
+        }
 
-            this.dropHive();
+        private void dropAndBlacklistHive() {
+            if (this.bee.hivePos != null) {
+                this.blacklistedTargets.add(this.bee.hivePos);
+                while (this.blacklistedTargets.size() > MAX_BLACKLISTED_TARGETS) {
+                    this.blacklistedTargets.remove(0);
+                }
+            }
+            dropHive();
         }
 
         private void dropHive() {
-            GardenBee.this.hivePos = null;
-            GardenBee.this.remainingCooldownBeforeLocatingNewHive = 200;
+            this.bee.hivePos = null;
+            this.bee.remainingCooldownBeforeLocatingNewHive = 200;
         }
 
         private boolean hasReachedTarget(BlockPos pos) {
-            if (GardenBee.this.closerThan(pos, 2)) {
-                return true;
-            } else {
-                Path path = GardenBee.this.navigation.getPath();
-                return path != null && path.getTarget().equals(pos) && path.canReach() && path.isDone();
-            }
+            if (this.bee.closerThan(pos, 2)) return true;
+            Path path = this.bee.getNavigation().getPath();
+            return path != null && path.getTarget().equals(pos) && path.canReach() && path.isDone();
         }
     }
 
-    public class BeeGoToKnownFlowerGoal extends GardenBee.BaseBeeGoal {
-        private static final int MAX_TRAVELLING_TICKS = 600;
-        int travellingTicks = GardenBee.this.level().random.nextInt(10);
+    /** 低血量时逃离正在锁定自己的怪物。 */
+    static class GardenBeeFleeGoal extends AvoidEntityGoal<Mob> {
+        private final GardenBee bee;
 
-        BeeGoToKnownFlowerGoal() {
-            this.setFlags(EnumSet.of(Goal.Flag.MOVE));
+        GardenBeeFleeGoal(GardenBee bee) {
+            super(bee, Mob.class,
+                    mob -> mob instanceof Mob attacker && attacker.getTarget() == bee,
+                    16.0F, 1.6D, 2.0D,
+                    EntitySelector.NO_CREATIVE_OR_SPECTATOR::test);
+            this.bee = bee;
         }
 
         @Override
-        public boolean canBeeUse() {
-            return GardenBee.this.savedFlowerPos != null
-                    && !GardenBee.this.hasRestriction()
-                    && this.wantsToGoToKnownFlower()
-                    && GardenBee.this.isFlowerValid(GardenBee.this.savedFlowerPos)
-                    && !GardenBee.this.closerThan(GardenBee.this.savedFlowerPos, 2);
-        }
-
-        @Override
-        public boolean canBeeContinueToUse() {
-            return this.canBeeUse();
-        }
-
-        @Override
-        public void start() {
-            this.travellingTicks = 0;
-            super.start();
-        }
-
-        @Override
-        public void stop() {
-            this.travellingTicks = 0;
-            GardenBee.this.navigation.stop();
-            GardenBee.this.navigation.resetMaxVisitedNodesMultiplier();
-        }
-
-        @Override
-        public void tick() {
-            if (GardenBee.this.savedFlowerPos != null) {
-                this.travellingTicks++;
-                if (this.travellingTicks > this.adjustedTickDelay(600)) {
-                    GardenBee.this.savedFlowerPos = null;
-                } else if (!GardenBee.this.navigation.isInProgress()) {
-                    if (GardenBee.this.isTooFarAway(GardenBee.this.savedFlowerPos)) {
-                        GardenBee.this.savedFlowerPos = null;
-                    } else {
-                        GardenBee.this.pathfindRandomlyTowards(GardenBee.this.savedFlowerPos);
-                    }
-                }
-            }
-        }
-
-        private boolean wantsToGoToKnownFlower() {
-            return GardenBee.this.ticksWithoutNectarSinceExitingHive > 2400;
-        }
-    }
-
-    class BeeGrowCropGoal extends GardenBee.BaseBeeGoal {
-        static final int GROW_CHANCE = 30;
-
-        @Override
-        public boolean canBeeUse() {
-            if (GardenBee.this.getCropsGrownSincePollination() >= 10) {
-                return false;
-            } else {
-                return GardenBee.this.random.nextFloat() < 0.3F ? false : GardenBee.this.hasNectar() && GardenBee.this.isHiveValid();
-            }
-        }
-
-        @Override
-        public boolean canBeeContinueToUse() {
-            return this.canBeeUse();
-        }
-
-        @Override
-        public void tick() {
-            if (GardenBee.this.random.nextInt(this.adjustedTickDelay(30)) == 0) {
-                for (int i = 1; i <= 2; i++) {
-                    BlockPos blockpos = GardenBee.this.blockPosition().below(i);
-                    BlockState blockstate = GardenBee.this.level().getBlockState(blockpos);
-                    Block block = blockstate.getBlock();
-                    BlockState blockstate1 = null;
-                    if (blockstate.is(BlockTags.BEE_GROWABLES)) {
-                        if (block instanceof CropBlock) {
-                            CropBlock cropblock = (CropBlock) block;
-                            if (!cropblock.isMaxAge(blockstate)) {
-                                blockstate1 = cropblock.getStateForAge(cropblock.getAge(blockstate) + 1);
-                            }
-                        } else if (block instanceof StemBlock) {
-                            int k = blockstate.getValue(StemBlock.AGE);
-                            if (k < 7) {
-                                blockstate1 = blockstate.setValue(StemBlock.AGE, Integer.valueOf(k + 1));
-                            }
-                        } else if (blockstate.is(Blocks.SWEET_BERRY_BUSH)) {
-                            int j = blockstate.getValue(SweetBerryBushBlock.AGE);
-                            if (j < 3) {
-                                blockstate1 = blockstate.setValue(SweetBerryBushBlock.AGE, Integer.valueOf(j + 1));
-                            }
-                        } else if (blockstate.is(Blocks.CAVE_VINES) || blockstate.is(Blocks.CAVE_VINES_PLANT)) {
-                            ((BonemealableBlock) blockstate.getBlock()).performBonemeal((ServerLevel) GardenBee.this.level(), GardenBee.this.random, blockpos, blockstate);
-                        }
-
-                        if (blockstate1 != null) {
-                            GardenBee.this.level().levelEvent(2011, blockpos, 15);
-                            GardenBee.this.level().setBlockAndUpdate(blockpos, blockstate1);
-                            GardenBee.this.incrementNumCropsGrownSincePollination();
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    class BeeHurtByOtherGoal extends HurtByTargetGoal {
-        BeeHurtByOtherGoal(GardenBee mob) {
-            super(mob);
+        public boolean canUse() {
+            return this.bee.getHealth() <= this.bee.getMaxHealth() * 0.3F && super.canUse();
         }
 
         @Override
         public boolean canContinueToUse() {
-            return GardenBee.this.isAngry() && super.canContinueToUse();
-        }
-
-        @Override
-        protected void alertOther(Mob mob, LivingEntity target) {
-            // 【新增过滤】如果目标是同类，或者目标是主人的宠物，绝对不报警
-            if (target instanceof GardenBee || (this.mob instanceof TamableAnimal pet && pet.isOwnedBy(target))) {
-                return;
-            }
-            if (mob instanceof GardenBee && this.mob.hasLineOfSight(target)) {
-                mob.setTarget(target);
-            }
+            return this.bee.getHealth() <= this.bee.getMaxHealth() * 0.6F && super.canContinueToUse();
         }
     }
 
-    class BeeLocateHiveGoal extends GardenBee.BaseBeeGoal {
-        @Override
-        public boolean canBeeUse() {
-            return GardenBee.this.remainingCooldownBeforeLocatingNewHive == 0 && !GardenBee.this.hasHive() && GardenBee.this.wantsToEnterHive();
+    static class GardenBeePollinateGoal extends GardenBeeBaseGoal {
+        static final int MIN_POLLINATION_TICKS = 400;
+        static final int MAX_POLLINATING_TICKS = 600;
+        static final double ARRIVAL_THRESHOLD = 0.1;
+        static final int POSITION_CHANGE_CHANCE = 25;
+        static final float SPEED_MODIFIER = 0.35F;
+        static final float HOVER_HEIGHT_WITHIN_FLOWER = 0.6F;
+        static final float HOVER_POS_OFFSET = 0.33333334F;
+
+        static final Predicate<BlockState> VALID_POLLINATION_BLOCKS = state -> {
+            if (state.hasProperty(BlockStateProperties.WATERLOGGED)
+                    && state.getValue(BlockStateProperties.WATERLOGGED)) {
+                return false;
+            }
+            if (!state.is(BlockTags.FLOWERS)) return false;
+            return !state.is(Blocks.SUNFLOWER)
+                    || state.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.UPPER;
+        };
+
+        private int successfulPollinatingTicks;
+        private int lastSoundPlayedTick;
+        private boolean pollinating;
+        @Nullable private Vec3 hoverPos;
+        private int pollinatingTicks;
+
+        GardenBeePollinateGoal(GardenBee bee) {
+            super(bee);
+            this.setFlags(EnumSet.of(Flag.MOVE));
         }
 
         @Override
-        public boolean canBeeContinueToUse() {
-            return false;
+        protected boolean canBeeUse() {
+            if (this.bee.remainingCooldownBeforeLocatingNewFlower > 0) return false;
+            if (this.bee.hasNectar()) return false;
+            if (this.bee.level().isRaining()) return false;
+
+            Optional<BlockPos> flower = this.findNearbyFlower();
+            if (flower.isEmpty()) {
+                this.bee.remainingCooldownBeforeLocatingNewFlower =
+                        Mth.nextInt(this.bee.getRandom(), 20, 60);
+                return false;
+            }
+
+            this.bee.savedFlowerPos = flower.get();
+            this.bee.getNavigation().moveTo(
+                    this.bee.savedFlowerPos.getX() + 0.5,
+                    this.bee.savedFlowerPos.getY() + 0.5,
+                    this.bee.savedFlowerPos.getZ() + 0.5,
+                    1.2F);
+            return true;
+        }
+
+        @Override
+        protected boolean canBeeContinueToUse() {
+            if (!this.pollinating) return false;
+            if (this.bee.savedFlowerPos == null) return false;
+            if (this.bee.level().isRaining()) return false;
+            if (this.hasPollinatedLongEnough()) return this.bee.getRandom().nextFloat() < 0.2F;
+            if (this.bee.tickCount % 20 == 0 && !this.bee.isFlowerValid(this.bee.savedFlowerPos)) {
+                this.bee.savedFlowerPos = null;
+                return false;
+            }
+            return true;
         }
 
         @Override
         public void start() {
-            GardenBee.this.remainingCooldownBeforeLocatingNewHive = 200;
-            List<BlockPos> list = this.findNearbyHivesWithSpace();
-            if (!list.isEmpty()) {
-                for (BlockPos blockpos : list) {
-                    if (!GardenBee.this.goToHiveGoal.isTargetBlacklisted(blockpos)) {
-                        GardenBee.this.hivePos = blockpos;
-                        return;
-                    }
-                }
+            this.successfulPollinatingTicks = 0;
+            this.pollinatingTicks = 0;
+            this.lastSoundPlayedTick = 0;
+            this.pollinating = true;
+            this.bee.resetTicksWithoutNectarSinceExitingHive();
+        }
 
-                GardenBee.this.goToHiveGoal.clearBlacklist();
-                GardenBee.this.hivePos = list.get(0);
+        @Override
+        public void stop() {
+            if (this.hasPollinatedLongEnough()) {
+                this.bee.setHasNectar(true);
             }
+            this.pollinating = false;
+            this.bee.getNavigation().stop();
+            this.bee.remainingCooldownBeforeLocatingNewFlower = 200;
         }
 
-        private List<BlockPos> findNearbyHivesWithSpace() {
-            BlockPos blockpos = GardenBee.this.blockPosition();
-            PoiManager poimanager = ((ServerLevel) GardenBee.this.level()).getPoiManager();
-            Stream<PoiRecord> stream = poimanager.getInRange(
-                    poi -> poi.value() == PoiRegister.GARDEN_BEE_NEST.get(),
-                    blockpos, 20, PoiManager.Occupancy.ANY);
-            return stream.map(PoiRecord::getPos)
-                    .filter(GardenBee.this::doesHiveHaveSpace)
-                    .sorted(Comparator.comparingDouble(pos -> pos.distSqr(blockpos)))
-                    .collect(Collectors.toList());
-        }
-    }
-
-    class BeeLookControl extends LookControl {
-        BeeLookControl(Mob mob) {
-            super(mob);
+        @Override
+        public boolean requiresUpdateEveryTick() {
+            return true;
         }
 
         @Override
         public void tick() {
-            if (!GardenBee.this.isAngry()) {
-                super.tick();
+            if (++this.pollinatingTicks > MAX_POLLINATING_TICKS) {
+                this.bee.savedFlowerPos = null;
+                return;
             }
-        }
 
-        @Override
-        protected boolean resetXRotOnTick() {
-            return !GardenBee.this.beePollinateGoal.isPollinating();
-        }
-    }
+            Vec3 center = Vec3.atBottomCenterOf(this.bee.savedFlowerPos)
+                    .add(0.0, HOVER_HEIGHT_WITHIN_FLOWER, 0.0);
 
-    class BeePollinateGoal extends GardenBee.BaseBeeGoal {
-        private static final int MIN_POLLINATION_TICKS = 400;
-        private static final int MIN_FIND_FLOWER_RETRY_COOLDOWN = 20;
-        private static final int MAX_FIND_FLOWER_RETRY_COOLDOWN = 60;
-        private final Predicate<BlockState> VALID_POLLINATION_BLOCKS = p_28074_ -> {
-            if (p_28074_.hasProperty(BlockStateProperties.WATERLOGGED) && p_28074_.getValue(BlockStateProperties.WATERLOGGED)) {
-                return false;
-            } else if (p_28074_.is(BlockTags.FLOWERS)) {
-                return p_28074_.is(Blocks.SUNFLOWER) ? p_28074_.getValue(DoublePlantBlock.HALF) == DoubleBlockHalf.UPPER : true;
-            } else {
-                return false;
+            if (center.distanceTo(this.bee.position()) > 1.0) {
+                this.hoverPos = center;
+                setWantedPos();
+                return;
             }
-        };
-        private static final double ARRIVAL_THRESHOLD = 0.1;
-        private static final int POSITION_CHANGE_CHANCE = 25;
-        private static final float SPEED_MODIFIER = 0.35F;
-        private static final float HOVER_HEIGHT_WITHIN_FLOWER = 0.6F;
-        private static final float HOVER_POS_OFFSET = 0.33333334F;
-        private int successfulPollinatingTicks;
-        private int lastSoundPlayedTick;
-        private boolean pollinating;
-        @Nullable
-        private Vec3 hoverPos;
-        private int pollinatingTicks;
-        private static final int MAX_POLLINATING_TICKS = 600;
 
-        BeePollinateGoal() {
-            this.setFlags(EnumSet.of(Goal.Flag.MOVE));
-        }
+            if (this.hoverPos == null) this.hoverPos = center;
 
-        @Override
-        public boolean canBeeUse() {
-            if (GardenBee.this.remainingCooldownBeforeLocatingNewFlower > 0) {
-                return false;
-            } else if (GardenBee.this.hasNectar()) {
-                return false;
-            } else if (GardenBee.this.level().isRaining()) {
-                return false;
-            } else {
-                Optional<BlockPos> optional = this.findNearbyFlower();
-                if (optional.isPresent()) {
-                    GardenBee.this.savedFlowerPos = optional.get();
-                    GardenBee.this.navigation
-                            .moveTo(
-                                    (double) GardenBee.this.savedFlowerPos.getX() + 0.5,
-                                    (double) GardenBee.this.savedFlowerPos.getY() + 0.5,
-                                    (double) GardenBee.this.savedFlowerPos.getZ() + 0.5,
-                                    1.2F
-                            );
-                    return true;
+            boolean arrived = this.bee.position().distanceTo(this.hoverPos) <= ARRIVAL_THRESHOLD;
+            boolean move = true;
+            if (arrived) {
+                // 到达后，小概率随机偏移悬停位置，增加真实感
+                if (this.bee.getRandom().nextInt(POSITION_CHANGE_CHANCE) == 0) {
+                    this.hoverPos = new Vec3(
+                            center.x() + getOffset(), center.y(), center.z() + getOffset());
+                    this.bee.getNavigation().stop();
                 } else {
-                    GardenBee.this.remainingCooldownBeforeLocatingNewFlower = Mth.nextInt(GardenBee.this.random, 20, 60);
-                    return false;
+                    move = false;
                 }
+                this.bee.getLookControl().setLookAt(center.x(), center.y(), center.z());
             }
-        }
 
-        @Override
-        public boolean canBeeContinueToUse() {
-            if (!this.pollinating) {
-                return false;
-            } else if (!GardenBee.this.hasSavedFlowerPos()) {
-                return false;
-            } else if (GardenBee.this.level().isRaining()) {
-                return false;
-            } else if (this.hasPollinatedLongEnough()) {
-                return GardenBee.this.random.nextFloat() < 0.2F;
-            } else if (GardenBee.this.tickCount % 20 == 0 && !GardenBee.this.isFlowerValid(GardenBee.this.savedFlowerPos)) {
-                GardenBee.this.savedFlowerPos = null;
-                return false;
-            } else {
-                return true;
+            if (move) setWantedPos();
+
+            this.successfulPollinatingTicks++;
+            if (this.bee.getRandom().nextFloat() < 0.05F
+                    && this.successfulPollinatingTicks > this.lastSoundPlayedTick + 60) {
+                this.lastSoundPlayedTick = this.successfulPollinatingTicks;
+                this.bee.playSound(SoundEvents.BEE_POLLINATE, 1.0F, 1.0F);
             }
-        }
-
-        private boolean hasPollinatedLongEnough() {
-            return this.successfulPollinatingTicks > 400;
         }
 
         boolean isPollinating() {
@@ -1251,173 +1378,45 @@ public class GardenBee extends TamableAnimal implements NeutralMob, FlyingAnimal
             this.pollinating = false;
         }
 
-        @Override
-        public void start() {
-            this.successfulPollinatingTicks = 0;
-            this.pollinatingTicks = 0;
-            this.lastSoundPlayedTick = 0;
-            this.pollinating = true;
-            GardenBee.this.resetTicksWithoutNectarSinceExitingHive();
-        }
-
-        @Override
-        public void stop() {
-            if (this.hasPollinatedLongEnough()) {
-                GardenBee.this.setHasNectar(true);
-            }
-
-            this.pollinating = false;
-            GardenBee.this.navigation.stop();
-            GardenBee.this.remainingCooldownBeforeLocatingNewFlower = 200;
-        }
-
-        @Override
-        public boolean requiresUpdateEveryTick() {
-            return true;
-        }
-
-        @Override
-        public void tick() {
-            this.pollinatingTicks++;
-            if (this.pollinatingTicks > 600) {
-                GardenBee.this.savedFlowerPos = null;
-            } else {
-                Vec3 vec3 = Vec3.atBottomCenterOf(GardenBee.this.savedFlowerPos).add(0.0, 0.6F, 0.0);
-                if (vec3.distanceTo(GardenBee.this.position()) > 1.0) {
-                    this.hoverPos = vec3;
-                    this.setWantedPos();
-                } else {
-                    if (this.hoverPos == null) {
-                        this.hoverPos = vec3;
-                    }
-
-                    boolean flag = GardenBee.this.position().distanceTo(this.hoverPos) <= 0.1;
-                    boolean flag1 = true;
-                    if (!flag && this.pollinatingTicks > 600) {
-                        GardenBee.this.savedFlowerPos = null;
-                    } else {
-                        if (flag) {
-                            boolean flag2 = GardenBee.this.random.nextInt(25) == 0;
-                            if (flag2) {
-                                this.hoverPos = new Vec3(vec3.x() + (double) this.getOffset(), vec3.y(), vec3.z() + (double) this.getOffset());
-                                GardenBee.this.navigation.stop();
-                            } else {
-                                flag1 = false;
-                            }
-
-                            GardenBee.this.getLookControl().setLookAt(vec3.x(), vec3.y(), vec3.z());
-                        }
-
-                        if (flag1) {
-                            this.setWantedPos();
-                        }
-
-                        this.successfulPollinatingTicks++;
-                        if (GardenBee.this.random.nextFloat() < 0.05F && this.successfulPollinatingTicks > this.lastSoundPlayedTick + 60) {
-                            this.lastSoundPlayedTick = this.successfulPollinatingTicks;
-                            GardenBee.this.playSound(SoundEvents.BEE_POLLINATE, 1.0F, 1.0F);
-                        }
-                    }
-                }
-            }
+        private boolean hasPollinatedLongEnough() {
+            return this.successfulPollinatingTicks > MIN_POLLINATION_TICKS;
         }
 
         private void setWantedPos() {
-            GardenBee.this.getMoveControl().setWantedPosition(this.hoverPos.x(), this.hoverPos.y(), this.hoverPos.z(), 0.35F);
+            this.bee.getMoveControl().setWantedPosition(
+                    this.hoverPos.x(), this.hoverPos.y(), this.hoverPos.z(), SPEED_MODIFIER);
         }
 
         private float getOffset() {
-            return (GardenBee.this.random.nextFloat() * 2.0F - 1.0F) * 0.33333334F;
+            return (this.bee.getRandom().nextFloat() * 2.0F - 1.0F) * HOVER_POS_OFFSET;
         }
 
         private Optional<BlockPos> findNearbyFlower() {
-            return this.findNearestBlock(this.VALID_POLLINATION_BLOCKS, 5.0);
+            return findNearestBlock(VALID_POLLINATION_BLOCKS, 5.0);
         }
 
+        /**
+         * 螺旋扫描寻找最近的方块。
+         * 注意：必须返回 immutable 的 BlockPos，否则下一次扫描会覆盖坐标。
+         */
         private Optional<BlockPos> findNearestBlock(Predicate<BlockState> predicate, double distance) {
-            BlockPos blockpos = GardenBee.this.blockPosition();
-            BlockPos.MutableBlockPos blockpos$mutableblockpos = new BlockPos.MutableBlockPos();
+            BlockPos origin = this.bee.blockPosition();
+            BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
 
-            for (int i = 0; (double) i <= distance; i = i > 0 ? -i : 1 - i) {
-                for (int j = 0; (double) j < distance; j++) {
+            for (int i = 0; i <= distance; i = i > 0 ? -i : 1 - i) {
+                for (int j = 0; j < distance; j++) {
                     for (int k = 0; k <= j; k = k > 0 ? -k : 1 - k) {
                         for (int l = k < j && k > -j ? j : 0; l <= j; l = l > 0 ? -l : 1 - l) {
-                            blockpos$mutableblockpos.setWithOffset(blockpos, k, i - 1, l);
-                            if (blockpos.closerThan(blockpos$mutableblockpos, distance)
-                                    && predicate.test(GardenBee.this.level().getBlockState(blockpos$mutableblockpos))) {
-                                return Optional.of(blockpos$mutableblockpos);
+                            pos.setWithOffset(origin, k, i - 1, l);
+                            if (origin.closerThan(pos, distance)
+                                    && predicate.test(this.bee.level().getBlockState(pos))) {
+                                return Optional.of(pos.immutable()); // 🔥 必须 immutable！
                             }
                         }
                     }
                 }
             }
-
             return Optional.empty();
-        }
-    }
-
-    class BeeWanderGoal extends Goal {
-        private static final int WANDER_THRESHOLD = 22;
-
-        BeeWanderGoal() {
-            this.setFlags(EnumSet.of(Goal.Flag.MOVE));
-        }
-
-        @Override
-        public boolean canUse() {
-            return GardenBee.this.navigation.isDone() && GardenBee.this.random.nextInt(10) == 0;
-        }
-
-        @Override
-        public boolean canContinueToUse() {
-            return GardenBee.this.navigation.isInProgress();
-        }
-
-        @Override
-        public void start() {
-            Vec3 vec3 = this.findPos();
-            if (vec3 != null) {
-                GardenBee.this.navigation.moveTo(GardenBee.this.navigation.createPath(BlockPos.containing(vec3), 1), 1.0);
-            }
-        }
-
-        @Nullable
-        private Vec3 findPos() {
-            Vec3 vec3;
-            if (GardenBee.this.isHiveValid() && !GardenBee.this.closerThan(GardenBee.this.hivePos, 22)) {
-                Vec3 vec31 = Vec3.atCenterOf(GardenBee.this.hivePos);
-                vec3 = vec31.subtract(GardenBee.this.position()).normalize();
-            } else {
-                vec3 = GardenBee.this.getViewVector(0.0F);
-            }
-
-            int i = 8;
-            Vec3 vec32 = HoverRandomPos.getPos(GardenBee.this, 8, 7, vec3.x, vec3.z, (float) (Math.PI / 2), 3, 1);
-            return vec32 != null ? vec32 : AirAndWaterRandomPos.getPos(GardenBee.this, 8, 4, -2, vec3.x, vec3.z, (float) (Math.PI / 2));
-        }
-    }
-
-    class BeeFleeGoal extends AvoidEntityGoal<Mob> {
-        public BeeFleeGoal(GardenBee bee) {
-            super(bee, Mob.class, living -> living instanceof Mob m && m.getTarget() == bee, 16.0F, 1.6D, 2.0D, EntitySelector.NO_CREATIVE_OR_SPECTATOR::test);
-        }
-
-        @Override
-        public boolean canUse() {
-            // 只有血量低于 30% 才允许启动逃跑
-            if (GardenBee.this.getHealth() > GardenBee.this.getMaxHealth() * 0.3F) {
-                return false;
-            }
-            return super.canUse();
-        }
-
-        @Override
-        public boolean canContinueToUse() {
-            // 逃跑过程中如果血回上来了，或者怪物追不上了，就停下
-            if (GardenBee.this.getHealth() > GardenBee.this.getMaxHealth() * 0.6F) {
-                return false;
-            }
-            return super.canContinueToUse();
         }
     }
 }

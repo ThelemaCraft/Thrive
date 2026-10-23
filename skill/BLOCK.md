@@ -65,6 +65,34 @@ static {
 "block.thrive.xxx": "Xxx"
 ```
 
+## 渲染层 render_type
+
+模型 JSON 顶层字段，决定方块的**渲染通道**。不写时由加载器推断，自定义方块常被推断错（例如植物变成实心黑块），**建议显式指定**。
+
+```json
+{
+  "parent": "minecraft:block/cross",
+  "render_type": "minecraft:cutout",
+  "textures": { "cross": "thrive:block/xxx" }
+}
+```
+
+| `render_type` | 行为 | 典型方块 |
+|---|---|---|
+| `solid` | 完全不透明，忽略 alpha | 石头、泥土、木板 |
+| `cutout` | Alpha 测试：alpha=0 的像素丢弃，其余不透明；无 mipmap | 玻璃、树苗、花草、门、栏杆、梯子 |
+| `cutout_mipped` | 同 `cutout`，但纹理启用 mipmap，远处不闪烁 | 树叶、藤蔓、大型蕨类 |
+| `cutout_mipped_all` | 同 `cutout_mipped`，物品形态也启用 mipmap | 需要物品栏清晰的树叶 |
+| `translucent` | 半透明混合，参与排序 | 染色玻璃、冰、水、史莱姆方块 |
+| `tripwire` | 绊线专用（渲染到天气目标） | 绊线 |
+
+选择规则：
+
+- 纹理**只有全透或全不透**（alpha 仅 0 / 255）→ `cutout`；面积大且远距离可见 → `cutout_mipped`
+- 纹理有**半透明像素**（0 < alpha < 255）→ `translucent`
+- 全不透明 → 不写（默认 `solid`）
+- 植物/树苗误用 `solid` → 镂空处变黑；误用 `translucent` → 交叉面排序闪烁，性能更差
+
 ## Properties 常用项
 
 ```java
@@ -132,12 +160,4 @@ public void onRemove(BlockState state, Level level, BlockPos pos,
     }
     super.onRemove(state, level, pos, newState, moved);
 }
-```
-
-## 加入创造标签
-
-`register/TabRegister.java` 对应标签的 `displayItems` 生成器：
-
-```java
-output.accept(BlockRegister.XXX.get());
 ```

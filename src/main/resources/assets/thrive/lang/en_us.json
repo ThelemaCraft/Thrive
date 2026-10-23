@@ -7,7 +7,7 @@
   "block.thrive.lantern_berry": "Lantern Berry",
   "block.thrive.sun_berry": "Sun Berry",
   "block.thrive.rampant_moss": "Rampant Moss",
-
+  "block.thrive.biome_sapling": "Biome Sapling",
   "block.thrive.biome_core": "Biome Core",
   "block.thrive.grass_block": "Grass Block",
   "block.thrive.garden_bee_nest": "Garden Bee Nest",
@@ -20,6 +20,7 @@
   "item.thrive.hunger_snack": "Hunger Snack",
   "item.thrive.fresh_grass_cake": "Fresh Grass Cake",
   "item.thrive.biome_twig": "Biome Twig",
+  "item.thrive.whistle": "Bee Whistle",
   "item.thrive.garden_bee_spawn_egg": "Garden Bee Spawn Egg",
   "item.thrive.dandelion_honey": "Dandelion Honey",
   "item.thrive.poppy_honey": "Poppy Honey",
@@ -102,7 +103,10 @@
   "jei.thrive.garden_bee_nest": "Garden Bee Nest Brewing",
 
   "item.thrive.potion_barrel": "Potion Barrel",
-  "item.thrive.loot_barrel.lore": "Place on the ground and open to retrieve the loot inside."
+  "item.thrive.loot_barrel.lore": "Place on the ground and open to retrieve the loot inside.",
+  "item.thrive.whistle.free": "Bees: free roam",
+  "item.thrive.whistle.follow": "Bees: follow",
+  "item.thrive.whistle.none": "No tamed bees nearby"
 
 
 }

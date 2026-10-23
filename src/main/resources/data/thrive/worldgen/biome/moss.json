@@ -33,9 +33,9 @@
     "creature": [],
     "misc": [],
     "monster": [
-        { "type": "minecraft:slime", "maxCount": 1, "minCount": 1, "weight": 100 },
-        { "type": "thrive:lantern_berry_creeper", "maxCount": 1, "minCount": 1, "weight": 100 },
-        { "type": "thrive:mossy_zombie", "maxCount": 1, "minCount": 1, "weight": 100 }
+        { "type": "minecraft:slime", "maxCount": 2, "minCount": 2, "weight": 5 },
+        { "type": "thrive:lantern_berry_creeper", "maxCount": 3, "minCount": 3, "weight": 7 },
+        { "type": "thrive:mossy_zombie", "maxCount": 4, "minCount": 4, "weight": 13 }
     ],
     "underground_water_creature": [
       { "type": "minecraft:glow_squid", "maxCount": 6, "minCount": 4, "weight": 10 }

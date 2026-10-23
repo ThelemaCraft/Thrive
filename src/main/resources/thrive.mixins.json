@@ -12,10 +12,11 @@
     "HealOrHarmMobEffectMixin",
     "WitchMixin",
     "WitchAccessor",
-    "AbstractArrowMixin"
+    "AbstractArrowMixin",
+    "FishingHookMixin"
   ],
   "client": [
-
+    "LocalPlayerMixin"
   ],
   "server": [
   ]

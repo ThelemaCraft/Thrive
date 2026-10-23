@@ -3,6 +3,7 @@ package com.thelema.thrive.register;
 import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.generic.item.BiomeTwig;
 import com.thelema.thrive.generic.item.HungerSnack;
+import com.thelema.thrive.generic.item.Whistle;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -40,6 +41,7 @@ public class ItemRegister {
     public static final DeferredHolder<Item, Item> HUNGER_SNACK;
     public static final DeferredHolder<Item, Item> FRESH_GRASS_CAKE;
     public static final DeferredHolder<Item, Item> BIOME_TWIG;
+    public static final DeferredHolder<Item, Item> WHISTLE;
     public static final DeferredHolder<Item, Item> RAMPANT_MOSS;
     public static final DeferredHolder<Item, Item> GARDEN_BEE_SPAWN_EGG;
     public static final DeferredHolder<Item, Item> GARDEN_PILLAGER_SPAWN_EGG;
@@ -94,6 +96,8 @@ public class ItemRegister {
                         .build())));
 
         BIOME_TWIG = ITEM.register("biome_twig", BiomeTwig::new);
+
+        WHISTLE = ITEM.register("whistle", Whistle::new);
 
         // 方块物品，堆叠上限 1
         RAMPANT_MOSS = ITEM.register("rampant_moss", () -> new BlockItem(BlockRegister.RAMPANT_MOSS.get(),

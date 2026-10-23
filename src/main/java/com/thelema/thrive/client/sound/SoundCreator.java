@@ -9,15 +9,13 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
 
 @EventBusSubscriber(modid = ThriveMod.MOD_ID, value = Dist.CLIENT)
-public class ClientSoundEvents {
+public class SoundCreator {
 
     @SubscribeEvent
     public static void onEntityJoin(EntityJoinLevelEvent event) {
-        if (!event.getLevel().isClientSide) return;
-
-        if (event.getEntity() instanceof GardenBee bee) {
-            Minecraft.getInstance().getSoundManager()
-                    .play(new GardenBeeSoundInstance(bee, false, null));
+        if (event.getLevel().isClientSide && event.getEntity() instanceof GardenBee bee) {
+            Minecraft.getInstance().getSoundManager().play(new GardenBeeSoundInstance(bee));
         }
     }
+
 }

@@ -49,16 +49,16 @@ public class ConvertorRegistry {
     }
 
     static {
-        // 有群系条件
+        // 一级群系的触发物，要非常容易获取
         register(
                 ResourceLocation.fromNamespaceAndPath("thrive", "plains_to_moss"),
-                BlockRegister.RAMPANT_MOSS.get().asItem(),
+                Items.MOSS_BLOCK,    // 苔藓块触发
                 ResourceKey.create(Registries.BIOME, ResourceLocation.withDefaultNamespace("plains")),
                 new PlainsToMoss());
 
         register(
                 ResourceLocation.fromNamespaceAndPath("thrive", "forest_to_garden"),
-                Items.HONEY_BLOCK,   // 你的花园触发物品
+                Items.HONEY_BLOCK,   // 蜂蜜块触发
                 ResourceKey.create(Registries.BIOME, ResourceLocation.withDefaultNamespace("forest")),
                 new ForestToGarden());
     }

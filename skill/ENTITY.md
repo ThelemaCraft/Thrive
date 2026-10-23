@@ -68,7 +68,36 @@ public static AttributeSupplier.Builder createAttributes() {
 
 常见属性默认值：`MAX_HEALTH` 20、`MOVEMENT_SPEED` 0.7、`ATTACK_DAMAGE` 2、`FOLLOW_RANGE` 16。
 
-## 四、生成蛋、生成规则（可选）
+## 四、经验值掉落
+
+实体被玩家或驯服的宠物击杀时，掉落的经验值由 `LivingEntity` 的 `xpReward` 字段控制。
+
+- **静态设置**：在实体构造函数中直接赋值。
+- **动态计算**：重写 `getBaseExperienceReward()` 方法（如僵尸幼年掉落成年的 2.5 倍，史莱姆等于其尺寸）。
+
+```java
+public MyEntity(EntityType<? extends MyEntity> type, Level level) {
+    super(type, level);
+    // 默认击杀掉落 10 点经验（类似烈焰人）
+    this.xpReward = 10;
+}
+```
+
+### 原版经验值简表
+
+根据原版代码，常见实体经验值设置如下（部分为动态）：
+
+| 实体 | 经验值 (`xpReward`) | 备注 |
+|---|---|---|
+| 凋灵 (`WitherBoss`) | 50 | |
+| 劫掠兽 (`Ravager`)、猪灵蛮兵 (`PiglinBrute`) | 20 | |
+| 烈焰人 (`Blaze`)、唤魔者 (`Evoker`)、守卫者 (`Guardian`)、旋风人 (`Breeze`) | 10 | |
+| 恶魂 (`Ghast`)、幻术师 (`Illusioner`)、幻翼 (`Phantom`)、潜影贝 (`Shulker`)、僵尸疣猪兽 (`Zoglin`)、成年疣猪兽 (`Hoglin`)、猪灵 (`Piglin`)、监守者 (`Warden`)、**所有 `Monster` 基类默认** | 5 | |
+| 末影螨 (`Endermite`)、恼鬼 (`Vex`)、幼年疣猪兽 (`Hoglin`) | 3 | |
+| 史莱姆 (`Slime`) | 动态：等于其尺寸（`size`） | `setSize` 中赋值 |
+| 幼年僵尸 (`Zombie`) | 动态：成年经验值 × 2.5 | 取整后掉落 |
+
+## 五、生成蛋与生成规则
 
 ```java
 public static final DeferredHolder<Item, Item> XXX_SPAWN_EGG =
@@ -80,26 +109,27 @@ public static final DeferredHolder<Item, Item> XXX_SPAWN_EGG =
 @EventBusSubscriber
 public class EntitySpawnRegister {
     @SubscribeEvent
-    public static void registerSpawnPlacements(SpawnPlacementRegisterEvent event) {
+    public static void registerSpawnPlacements(RegisterSpawnPlacementsEvent event) {
         event.register(
                 EntityRegister.XXX.get(),
-                SpawnPlacements.Type.ON_GROUND,
+                SpawnPlacementTypes.ON_GROUND,
                 Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                 XxxEntity::checkXxxSpawnRules,
-                SpawnPlacementRegisterEvent.Operation.REPLACE);
+                RegisterSpawnPlacementsEvent.Operation.REPLACE);
     }
 }
 ```
 
-`SpawnPlacements.Type`：`ON_GROUND` / `IN_WATER` / `NO_RESTRICTIONS`（三选一，否则日志 warning）。
+`SpawnPlacementTypes`：`ON_GROUND` / `IN_WATER` / `NO_RESTRICTIONS`。
 
 群系 spawner 数据在 `data/thrive/worldgen/biome/<biome>.json` 的 `spawners` 数组，不加就不自然生成。
 
-## 五、原版模型实体 — GardenBee
+**突破生成碰撞限制**：
+原版 `world.noCollision` 检查是硬编码的。若需允许实体生成在特定装饰方块（如苔藓地毯、矮植物）内，修改 `checkSpawnRules` 无效。必须监听 `MobSpawnEvent.PositionCheck` 强行放行。具体原理见 `AI.md` 第 8 节。
+
+## 六、原版模型实体 — GardenBee
 
 **参考实现**：`generic/entity/GardenBee.java`、`client/model/entity/GardenBeeModel.java`、`client/render/entity/GardenBeeRenderer.java`。
-
-它涵盖：飞行、驯服、攻击、跨端同步、自定义 Goal。复制原版 `BeeModel` 只改泛型即可。
 
 要点速查：
 
@@ -113,107 +143,18 @@ public class EntitySpawnRegister {
 | 采蜜/归巢 | 独立 `Goal`，优先级调度 |
 | 跨端字段 | 走同步位，见第十章 |
 
-## 六、路径移动
+## 七、路径移动简述
 
-> 更完整的 AI 系统拆解（GoalSelector / 控制器 / 导航 / 攻击）见 `AI.md`。
+实体 AI 移动涉及四层架构（Goal 决策、Navigation 战略、Control 战术、Travel 执行）。**详细原理与代码解析请参阅 `AI.md` 的第 1、4、5 节。**
 
-`Mob` 有两套移动驱动，用途不同：
+简要判据：
+- **远距离、复杂地形、需绕障**：用 `PathNavigation.moveTo(...)`。它底层自动调用 Control，运行期间（`!isDone()`）**绝不要手动去调 Control**。
+- **短距离定向移动**：用 `MoveControl.setWantedPosition(...)`。直驱，影响身体朝向。
+- **战斗走位（侧移/后撤）**：用 `MoveControl.strafe(...)`。自身视角平移，不影响身体朝向。
 
-| 方式 | 适用 | 特征 |
-|---|---|---|
-| `PathNavigation` | 绕过障碍到**固定点** | A* 寻路，逐节点走 |
-| `MoveControl` | 目标点**持续变化** | 直驱，丝滑 |
+> 避坑核心：不要同时使用 `PathNavigation` 和手写的 `MoveControl` 抢占 MOVE Flag。如果使用 `MoveControl` 直驱，对应的 Goal 必须覆写 `requiresUpdateEveryTick() { return true; }`，否则实体会一卡一卡。
 
-### 6.1 `PathNavigation` 的"走走停停"
-
-每 tick 调用链：
-
-```
-Mob.serverAiStep
-  → navigation.tick()          // 逐节点推进
-  → moveControl.tick()         // 执行移动
-```
-
-`PathNavigation.tick()`：
-
-```java
-if (!isDone()) {
-    if (canUpdatePath()) followThePath();    // 到节点附近 → path.advance()
-    Vec3 next = path.getNextEntityPos(mob);  // 下一节点中心
-    mob.getMoveControl().setWantedPosition(next.x, next.y, next.z, speed);
-}
-```
-
-`wanted` 点 = **下一路径节点**，不是最终目标。`MoveControl` 走到 wanted 点附近就刹停，等 `followThePath` 推进节点后再起步。**每节点一个启停**，观感就是"走一下、顿一下"。
-
-### 6.2 `moveTo` 重算加剧卡顿
-
-```java
-public boolean moveTo(double x, double y, double z, double speed) {
-    return this.moveTo(this.createPath(x, y, z, 1), speed);
-}
-```
-
-`createPath` 是**同步 A***（`PathFinder.findPath` 当场跑完），不存在"后台算几 tick"。真正的卡顿来源：
-
-1. 每次 `moveTo` 都重跑一次 A*，目标点一变就重算一次，CPU 也贵；
-2. A* 返回 null → `path = null` → `isDone()` 为 true → 当刻不再给 `MoveControl` 设目标，实体站住；
-3. `recomputePath` 有 20 tick 节流 + `hasDelayedRecomputation`，会漏一拍。
-
-**动态目标 + 频繁 `moveTo` = 一直走停**。
-
-### 6.3 解法：直驱 `MoveControl`
-
-```java
-// KitingGoal.tick()：每 1 秒选一次落脚点，期间固定
-if (--repathTimer <= 0) {
-    repathTimer = 20;
-    dest = pickDest(target);          // 最终目标点，不是路径节点
-}
-witch.getMoveControl().setWantedPosition(dest.x, dest.y, dest.z, 1.0);
-```
-
-- wanted 点 = **最终目标**（不是节点）
-- 选点**低频**（1 秒一次）且期间固定，`MoveControl` 一路走完，**不重算路径**
-- 落脚点随目标移动而移动，实体就持续位移
-- **直驱 Goal 必须 `requiresUpdateEveryTick() { return true; }`**：Goal 默认隔 tick tick，而 `MoveControl` 一旦没收到新的 `setWantedPosition` 就会进 `WAIT` 分支把 `zza` 清零，表现为一卡一卡、平均速度减半
-
-**保持距离的选点**：以目标为圆心、`NEAR`~`FAR` 为半径，方向沿「目标 → 自己」。
-自己在 `MID=(NEAR+FAR)/2` 内侧就去外圈、外侧就回内圈 → 永远在走，同时距离被夹在 `NEAR`~`FAR`。
-不需要左右横跳。
-
-**活例**：`generic/entity/goal/KitingGoal.java`。
-
-### 6.4 卡墙兜底
-
-`MoveControl` 不绕障。撞墙时用 `navigation` 兜底：
-
-```java
-if (witch.position().distanceToSqr(lastPos) < 0.01) {
-    if (++stuckTicks > 20) {
-        witch.getNavigation().moveTo(dest.x, dest.y, dest.z, 1.0);
-        stuckTicks = 0;
-    }
-} else {
-    stuckTicks = 0;
-}
-lastPos = witch.position();
-```
-
-**1 秒没动 → 触发一次 A* 绕障**，绕完继续直驱。
-
-### 6.5 判据
-
-| 场景 | 选 |
-|---|---|
-| 巡逻、走固定路径、绕障优先 | `navigation` |
-| 追击、kiting、目标点每 tick 变 | `moveControl` |
-| 高速移动、无重力（飞行） | `moveControl` |
-| 需要穿门、爬梯 | `navigation` |
-
-**活例**：`generic/entity/goal/KitingGoal.java`。
-
-## 七、模型类 + 渲染器 + 客户端注册
+## 八、模型类 + 渲染器 + 客户端注册
 
 **模型类**（`client/model/entity/GardenBeeModel.java`）：
 
@@ -252,7 +193,7 @@ public class EntityRenderRegister {
 
 两个事件都要。少 `RegisterLayerDefinitions` → `bakeLayer` 抛 `No model for layer`。
 
-## 八、GeckoLib 集成
+## 九、GeckoLib 集成
 
 **实体**：`extends Monster implements GeoAnimatable`
 
@@ -280,7 +221,7 @@ assets/thrive/animations/xxx.animation.json
 
 **注册**：只 `registerRenderers`，不需要 `registerLayerDefinitions`。
 
-## 九、跨端字段同步
+## 十、跨端字段同步
 
 普通 `public Item carriedPollen;` 只在服务端有值。客户端渲染器读它永远 `null`。
 
@@ -315,7 +256,7 @@ if (!this.level().isClientSide) {
 
 **同步 ≠ 持久化**：`SynchedEntityData` 只在实体存活期间传播，存档靠 `addAdditionalSaveData`。
 
-## 十、NBT
+## 十一、NBT
 
 ```java
 @Override
@@ -339,7 +280,7 @@ public void readAdditionalSaveData(CompoundTag tag) {
 
 Item 走 `getKey(...).toString()` / `ResourceLocation.parse(...)`。BlockPos 走 `asLong()` / `BlockPos.of(long)`。
 
-## 十一、常见坑
+## 十二、常见坑
 
 | 坑 | 症状 |
 |---|---|
@@ -348,15 +289,14 @@ Item 走 `getKey(...).toString()` / `ResourceLocation.parse(...)`。BlockPos 走
 | 跨端字段没同步 | 渲染器读不到值 |
 | 渲染器构造签名带多余参数 | 无法当 `EntityRendererProvider` 用 |
 | 飞行实体不覆写 `checkFallDamage` | 落地掉血 |
-| 飞行游荡用 `moveControl` | 蜜蜂呆立/打转 |
 | 宠物 `setTarget` 没过滤主人 | 主人打宠物 → 反击主人 |
-| `getTick` 返回非 `this.tickCount` | 动画速率异常 |
 | 生成蛋缺 `stacksTo(1)` | 和原版不一致 |
 | GeckoLib 忘注册渲染器 | 实体不可见 |
 | 动画名和 JSON key 不符 | 无动画 |
-| 动态目标用 `navigation` | 走走停停 |
+| 用错 AI 移动方式 | 走走停停或原地打转，详见 `AI.md` |
+| 生成被碰撞拦截 | 无法生成在矮方块上，见 `AI.md` 第 8 节 |
 
-## 十二、清单
+## 十三、清单
 
 ### 原版模型实体
 

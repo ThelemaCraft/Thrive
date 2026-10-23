@@ -44,7 +44,7 @@ public class BiomeCore extends Block implements EntityBlock {
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(
             Level level, BlockState state, BlockEntityType<T> type) {
-        if (type != BlockEntityRegister.THRIVE_CORE.get()) return null;
+        if (type != BlockEntityRegister.BIOME_CORE.get()) return null;
         return (lvl, pos, st, be) -> BiomeCoreBlockEntity.tick(lvl, pos, st, (BiomeCoreBlockEntity) be);
     }
 
