@@ -41,3 +41,12 @@ repo/
 
 ### 本地反编译源码（勿提交） ###
 mc/
+
+### skill ###
+skill/
+
+### tool ###
+tool
+
+### dsh ###
+_dsh-research
