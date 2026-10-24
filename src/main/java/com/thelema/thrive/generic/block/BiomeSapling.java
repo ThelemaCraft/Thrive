@@ -26,6 +26,9 @@ import java.util.Optional;
 
 public class BiomeSapling extends SaplingBlock {
 
+    /** 保底结构：未注册的群系（如 mod 群系）也至少能长出一棵树。 */
+    public static final ResourceLocation FALLBACK_TREE = ResourceLocation.fromNamespaceAndPath("thrive", "biome_core_tree_plains");
+
     public static Map<ResourceLocation, ResourceLocation> MAP = new HashMap<>();
 
     public static void register(String id, String loc){
@@ -40,9 +43,8 @@ public class BiomeSapling extends SaplingBlock {
     }
 
     public static ResourceLocation treeStructureFor(Holder<Biome> biome) {
-        return biome.unwrapKey()
-                .map(key -> MAP.get(key.location()))
-                .orElse(null);
+        return biome.unwrapKey().map(key -> MAP.get(key.location()))
+                .orElse(FALLBACK_TREE);
     }
 
     public BiomeSapling(Properties properties) {
@@ -58,20 +60,15 @@ public class BiomeSapling extends SaplingBlock {
         }
 
         ResourceLocation structureLocation = treeStructureFor(level.getBiome(pos));
-        if (structureLocation == null) {
-            return;
-        }
+        if (structureLocation == null) return;
 
         StructureTemplateManager manager = level.getServer().getStructureManager();
         StructureTemplate template = manager.get(structureLocation).orElse(null);
-        if (template == null) {
-            return;
-        }
+        if (template == null) return;
 
         BlockPos toCore = findCoreOffset(template);
-        if (toCore == null) {
-            return;
-        }
+        if (toCore == null) return;
+
         BlockPos toOrigin = pos.subtract(toCore);
 
         StructurePlaceSettings settings = new StructurePlaceSettings()

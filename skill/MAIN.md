@@ -74,7 +74,7 @@ com.thelema.thrive
 │   ├── block              方块
 │   │   └── other          方块辅助（SurfaceItem 等组合能力）
 │   ├── blockentity        方块实体
-│   │   ├── convertor      转换器实现
+│   │   ├── biomeModifier      转换器实现
 │   │   └── other          方块实体辅助
 │   ├── item               物品
 │   ├── entity             实体

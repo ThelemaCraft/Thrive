@@ -2,8 +2,8 @@ package com.thelema.thrive.generic.blockentity;
 
 import com.thelema.thrive.generic.blockentity.cap.Rotator;
 import com.thelema.thrive.generic.blockentity.cap.Surface;
-import com.thelema.thrive.generic.blockentity.convertor.Convertor;
-import com.thelema.thrive.generic.blockentity.convertor.ConvertorRegistry;
+import com.thelema.thrive.generic.blockentity.convertor.BiomeModifier;
+import com.thelema.thrive.generic.blockentity.convertor.BiomeModifierRegistry;
 import com.thelema.thrive.register.BlockEntityRegister;
 import com.thelema.thrive.register.BlockRegister;
 import net.minecraft.core.BlockPos;
@@ -34,7 +34,7 @@ public class BiomeCoreBlockEntity extends BlockEntity {
     public int checkTimer;
 
     /** 当前运行的转换器 id。null = 空闲。 */
-    public ResourceLocation activeConvertorId;
+    public ResourceLocation activeBiomeModifierId;
 
     /** 待重发 chunk 集合。本会话有效，不存 NBT。 */
     public final Set<Long> dirty = new HashSet<>();
@@ -60,20 +60,20 @@ public class BiomeCoreBlockEntity extends BlockEntity {
         be.rotator.tick();
         if (level.isClientSide) return;
 
-        // 每 10 天（240,000 tick）的黎明时分，在 Surface 中生成一个物品
+        // 每 10 天（240,000 tick）的黎明时分，在 Surface 中生成一个群系树苗
         long dayTime = level.getDayTime();
         if (dayTime > 0 && dayTime % 240000L == 0) {
             // 如果 Surface 里面是空的，才生成
             if (be.surface.getStack().isEmpty()) {
                 // 替换为你想要生成的物品，比如群系核心本身或其他材料
-                be.surface.set(new ItemStack(BlockRegister.BIOME_CORE.get()), Direction.UP);
+                be.surface.set(new ItemStack(BlockRegister.BIOME_SAPLING.get()), Direction.UP);
                 be.setChanged();
                 level.sendBlockUpdated(pos, state, state, 3); // 通知客户端刷新
             }
         }
         // 转换中
         if (!be.rotator.isEmpty()) {
-            Convertor c = ConvertorRegistry.get(be.activeConvertorId);
+            BiomeModifier c = BiomeModifierRegistry.get(be.activeBiomeModifierId);
             if (c != null) c.tick((ServerLevel) level, be);
             return;
         }
@@ -88,24 +88,22 @@ public class BiomeCoreBlockEntity extends BlockEntity {
         ItemStack stack = be.surface.getStack();
         if (stack.isEmpty()) return;
 
-        ResourceLocation id;
-        // 先试通用：不需要群系
-        ResourceLocation universal = ConvertorRegistry.route(stack.getItem(), null);
-        if (universal != null) {
-            id = universal;
-        } else {
-            // 按源群系
-            ResourceKey<Biome> here = level.getBiome(be.getBlockPos()).unwrapKey().orElse(null);
-            if (here == null) return;
-            id = ConvertorRegistry.route(stack.getItem(), here);
+        ResourceLocation chosenId = null;
+        for (ResourceLocation id : BiomeModifierRegistry.getCandidates(stack.getItem())) {
+            BiomeModifier modifier = BiomeModifierRegistry.get(id);
+            if (modifier == null) continue;
+            if (modifier.canUse((ServerLevel) level, be)) {
+                chosenId = id;
+                break;
+            }
         }
-        if (id == null) return;
+        if (chosenId == null) return;   // 没有可用修改器，物品留在 surface 不抽走
 
         ItemStack extracted = stack.copyWithCount(1);
         if (stack.getCount() <= 1) be.surface.clear();
         else be.surface.setCount(stack.getCount() - 1);
         be.rotator.set(extracted);
-        be.activeConvertorId = id;
+        be.activeBiomeModifierId = chosenId;
     }
 
     /** 清空转换状态：Rotator、计时、进度、转换器 id。 */
@@ -113,7 +111,7 @@ public class BiomeCoreBlockEntity extends BlockEntity {
         rotator.clear();
         checkTimer = 0;
         data.getAllKeys().clear();
-        activeConvertorId = null;
+        activeBiomeModifierId = null;
     }
 
     @Override
@@ -136,7 +134,7 @@ public class BiomeCoreBlockEntity extends BlockEntity {
         rotator.save(tag, regs);
         tag.putInt("CheckTimer", checkTimer);
         tag.put("data", data);
-        if (activeConvertorId != null) tag.putString("ActiveConvertor", activeConvertorId.toString());
+        if (activeBiomeModifierId != null) tag.putString("ActiveConvertor", activeBiomeModifierId.toString());
     }
 
     @Override
@@ -147,7 +145,7 @@ public class BiomeCoreBlockEntity extends BlockEntity {
         if (tag.contains("data")) data.merge(tag.getCompound("data"));
         checkTimer = tag.getInt("CheckTimer");
         if (tag.contains("ActiveConvertor")) {
-            activeConvertorId = ResourceLocation.parse(tag.getString("ActiveConvertor"));
+            activeBiomeModifierId = ResourceLocation.parse(tag.getString("ActiveConvertor"));
         }
     }
 }

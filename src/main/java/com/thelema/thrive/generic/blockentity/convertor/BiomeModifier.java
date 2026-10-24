@@ -16,8 +16,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.block.state.BlockState;
@@ -36,9 +34,12 @@ import java.util.function.BiConsumer;
  * 一条转换路径的完整逻辑。
  * BE 只负责调度（按 id 找到本转换器、调用 tick）。
  */
-public interface Convertor {
+public interface BiomeModifier {
 
-    /** 唯一抽象方法 → 函数式接口，简单路径可用 lambda 替代。 */
+    /**决定能不能运行*/
+    boolean canUse(ServerLevel level, BiomeCoreBlockEntity be);
+
+    /** tick */
     void tick(ServerLevel level, BiomeCoreBlockEntity be);
 
     /** 读本转换已运行的 tick 数。存 data，读档续跑。 */

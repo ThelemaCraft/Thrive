@@ -20,7 +20,7 @@ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
 
 import java.util.Set;
 
-public class PlainsToMoss implements Convertor {
+public class PlainsToMoss implements BiomeModifier {
 
     static final int TICKS_PER_RING = 20;   // 1 秒 1 环
     static final int MAX_RING = 64;         // 4 chunk 半径
@@ -76,6 +76,11 @@ public class PlainsToMoss implements Convertor {
             Blocks.FLOWERING_AZALEA, Blocks.FLOWERING_AZALEA,
             Blocks.FLOWERING_AZALEA, Blocks.FLOWERING_AZALEA
     };
+
+    @Override
+    public boolean canUse(ServerLevel level, BiomeCoreBlockEntity be) {
+        return level.getBiome(be.getBlockPos()).is(SOURCE);
+    }
 
     @Override
     public void tick(ServerLevel level, BiomeCoreBlockEntity be) {

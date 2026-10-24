@@ -35,7 +35,7 @@ import java.util.List;
  * </ul>
  * 清理和造景错开多圈，避免后一圈的清理把刚种好的树冠削掉。
  */
-public class ForestToGarden implements Convertor {
+public class ForestToGarden implements BiomeModifier {
 
     static final int TICKS_PER_RING = 20;   // 1 秒 1 环
     static final int MAX_RING = 64;         // 4 chunk 半径
@@ -78,6 +78,11 @@ public class ForestToGarden implements Convertor {
     static final Direction[] HORIZONTAL = {
             Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST
     };
+
+    @Override
+    public boolean canUse(ServerLevel level, BiomeCoreBlockEntity be) {
+        return level.getBiome(be.getBlockPos()).is(SOURCE);
+    }
 
     @Override
     public void tick(ServerLevel level, BiomeCoreBlockEntity be) {
