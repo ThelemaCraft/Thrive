@@ -5,6 +5,7 @@ import com.thelema.thrive.register.EffectRegister;
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectCategory;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -18,7 +19,6 @@ import java.util.Set;
 @EventBusSubscriber(modid = ThriveMod.MOD_ID)
 public class Milk extends MobEffect {
 
-    // 内部更新标记：防止 tryConsumeMilk 重新添加效果时触发拦截事件
     private static boolean isInternalUpdate = false;
 
     public Milk() {
@@ -33,50 +33,83 @@ public class Milk extends MobEffect {
     @Override
     public void onEffectStarted(LivingEntity entity, int amplifier) {
         if (isInternalUpdate) return;
-        // 尝试清除身上已有的可被牛奶治愈的效果
-        // removeEffectsCuredBy 会返回 boolean，代表是否清除了至少一个效果
-        if (entity.removeEffectsCuredBy(EffectCures.MILK)) {
-            // 如果确实清除了效果，扣除 30 秒时间
-            tryConsumeMilk(entity);
+
+        int totalCost = 0;
+        // 遍历身上所有的效果，累加需要消耗的牛奶时间
+        for (MobEffectInstance instance : entity.getActiveEffects()) {
+            if (instance.getEffect().value() != this && instance.getCures().contains(EffectCures.MILK)) {
+                totalCost += calculateCost(instance);
+            }
+        }
+
+        // 如果确实清除了效果，扣除累加的时间
+        if (totalCost > 0) {
+            entity.removeEffectsCuredBy(EffectCures.MILK);
+            tryConsumeMilk(entity, totalCost);
         }
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onEffectApplicable(MobEffectEvent.Applicable event) {
-        // 1. 只在服务端处理，避免客户端刷屏和幽灵拦截
         if (event.getEntity().level().isClientSide()) return;
-
-        // 2. 如果是内部扣时间重新添加触发的，直接放行
         if (isInternalUpdate) return;
 
         MobEffectInstance added = event.getEffectInstance();
-
-        // 3. 如果是牛奶本身，放行
         if (added == null || added.getEffect().value() instanceof Milk) return;
 
-        // 4. 实体有牛奶，且新加的效果可被牛奶清除 -> 拦截并扣时间
         if (event.getEntity().hasEffect(EffectRegister.MILK) && added.getCures().contains(EffectCures.MILK)) {
-            if (tryConsumeMilk(event.getEntity())) {
+            int cost = calculateCost(added);
+            if (tryConsumeMilk(event.getEntity(), cost)) {
                 event.setResult(MobEffectEvent.Applicable.Result.DO_NOT_APPLY);
             }
         }
     }
 
     /**
-     * 扣除牛奶 600 tick 时间。
+     * 计算抵消该效果需要消耗的牛奶时间。
+     * 普通效果：1 tick 抵消 1 tick。
+     * 瞬间效果：1 点数值抵消 400 tick (20秒)。
+     */
+    private static int calculateCost(MobEffectInstance instance) {
+        MobEffect effect = instance.getEffect().value();
+        if (effect.isInstantenous()) {
+            return getInstantEffectValue(instance) * 400; // 微调：1点数值 = 20s = 400tick
+        } else {
+            return instance.getDuration();
+        }
+    }
+
+    /**
+     * 获取瞬间效果的数值。
+     * 原版瞬间治疗 I 级为 4，II 级为 8；瞬间伤害 I 级为 6，II 级为 12。
+     * 自定义瞬间效果默认以等级 (amplifier + 1) 作为数值。
+     */
+    private static int getInstantEffectValue(MobEffectInstance instance) {
+        int amp = instance.getAmplifier() + 1;
+        // 用 Holder.is(Holder) 比较，或者直接比较 value()
+        if (instance.getEffect().is(MobEffects.HEAL)) {
+            return 4 * amp;
+        }
+        if (instance.getEffect().is(MobEffects.HARM)) {
+            return 6 * amp;
+        }
+        return amp;
+    }
+
+    /**
+     * 扣除牛奶指定时间。
      * @return 是否成功扣除（如果身上没牛奶则返回 false）
      */
-    public static boolean tryConsumeMilk(LivingEntity entity) {
+    public static boolean tryConsumeMilk(LivingEntity entity, int cost) {
         MobEffectInstance milk = entity.getEffect(EffectRegister.MILK);
         if (milk == null) return false;
 
-        int newDuration = milk.getDuration() - 400;
+        int newDuration = milk.getDuration() - cost;
 
-        // 原版 update() 无法缩短时间，必须先移除
         entity.removeEffect(EffectRegister.MILK);
 
         if (newDuration > 0) {
-            isInternalUpdate = true; // 开启标记
+            isInternalUpdate = true;
             entity.addEffect(new MobEffectInstance(
                     milk.getEffect(),
                     newDuration,
@@ -85,7 +118,7 @@ public class Milk extends MobEffect {
                     milk.isVisible(),
                     milk.showIcon()
             ));
-            isInternalUpdate = false; // 关闭标记
+            isInternalUpdate = false;
         }
 
         return true;

@@ -5,7 +5,6 @@ import com.thelema.thrive.generic.entity.PrimedSunBerry;
 import com.thelema.thrive.register.BlockRegister;
 import com.thelema.thrive.register.SoundRegister;
 import net.minecraft.core.BlockPos;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
@@ -43,6 +42,8 @@ public class SunBerry extends Block implements EntityBlock {
         this.registerDefaultState(this.stateDefinition.any().setValue(CORE, false));
     }
 
+    // ==================== 状态与渲染 ====================
+
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         builder.add(CORE);
@@ -52,6 +53,8 @@ public class SunBerry extends Block implements EntityBlock {
     protected RenderShape getRenderShape(BlockState state) {
         return RenderShape.INVISIBLE;
     }
+
+    // ==================== 方块实体与放置 ====================
 
     @Override
     public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
@@ -79,19 +82,16 @@ public class SunBerry extends Block implements EntityBlock {
 
         BlockPos core = pos.offset(0, 1, 0);
 
+        // 批量放置并设定 CORE 状态
         for (BlockPos p : BlockPos.betweenClosed(core.offset(-1, -1, -1), core.offset(1, 1, 1))) {
             BlockState s = this.defaultBlockState();
             if (p.equals(core)) {
                 s = s.setValue(CORE, true);
             }
-            if (!p.equals(pos)) {
-                level.setBlock(p, s, 3);
-            } else {
-                level.setBlock(p, s, 3);
-            }
+            level.setBlock(p, s, 3);
         }
 
-        // corePos 仍然保留，供其他逻辑（点燃、破坏）定位
+        // 绑定 corePos
         for (BlockPos p : BlockPos.betweenClosed(core.offset(-1, -1, -1), core.offset(1, 1, 1))) {
             if (level.getBlockEntity(p) instanceof SunBerryBlockEntity be) {
                 be.setCorePos(core);
@@ -106,6 +106,8 @@ public class SunBerry extends Block implements EntityBlock {
         }
         return null;
     }
+
+    // ==================== 破坏与交互 ====================
 
     @Override
     public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
@@ -170,6 +172,8 @@ public class SunBerry extends Block implements EntityBlock {
         }
     }
 
+    // ==================== 核心逻辑与外部调用 ====================
+
     public static void ignite(Level level, BlockPos core, @Nullable LivingEntity igniter) {
         if (!level.isClientSide) {
             PrimedSunBerry entity = new PrimedSunBerry(
@@ -179,5 +183,36 @@ public class SunBerry extends Block implements EntityBlock {
                     SoundSource.BLOCKS, 1.5F, 1.5F);
             level.gameEvent(igniter, GameEvent.PRIME_FUSE, core);
         }
+    }
+
+    /** 供实体（如 LanternBerryCreeper）调用的安全放置方法 */
+    public static boolean tryPlaceSunBerry(Level level, BlockPos core) {
+        if (level.isClientSide) return false;
+
+        // 检查 3x3x3 空间是否全都可以被替换（即空气或无碰撞植物）
+        for (BlockPos p : BlockPos.betweenClosed(core.offset(-1, -1, -1), core.offset(1, 1, 1))) {
+            if (!level.getBlockState(p).canBeReplaced()) {
+                return false;
+            }
+        }
+
+        BlockState berryState = BlockRegister.SUN_BERRY.get().defaultBlockState();
+
+        // 放置方块
+        for (BlockPos p : BlockPos.betweenClosed(core.offset(-1, -1, -1), core.offset(1, 1, 1))) {
+            if (p.equals(core)) {
+                level.setBlock(p, berryState.setValue(SunBerry.CORE, true), 3);
+            } else {
+                level.setBlock(p, berryState, 3);
+            }
+        }
+
+        // 绑定 BlockEntity 的中心坐标f
+        for (BlockPos p : BlockPos.betweenClosed(core.offset(-1, -1, -1), core.offset(1, 1, 1))) {
+            if (level.getBlockEntity(p) instanceof SunBerryBlockEntity be) {
+                be.setCorePos(core);
+            }
+        }
+        return true;
     }
 }

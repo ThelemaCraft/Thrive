@@ -5,6 +5,7 @@ import com.thelema.thrive.generic.block.*;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.GrassBlock;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -33,13 +34,13 @@ public class BlockRegister {
 
     public static final DeferredHolder<Block, Block> MOSS_FRAME;
     public static final DeferredHolder<Block, Block> LANTERN_BERRY;
+    public static final DeferredHolder<Block, Block> LANTERN_BERRY_PEEL;
 
     public static final DeferredHolder<Block, Block> MOSS_PLANTING_BLOCK;
 
     public static final DeferredHolder<Block, Block> SUN_BERRY;
     public static final DeferredHolder<Block, Block> GRASS_BLOCK;
     public static final DeferredHolder<Block, Block> BIOME_CORE;
-    public static final DeferredHolder<Block, Block> RAMPANT_MOSS;
     public static final DeferredHolder<Block, Block> GARDEN_BEE_NEST;
     public static final DeferredHolder<Block, Block> BIOME_SAPLING;
 
@@ -56,15 +57,18 @@ public class BlockRegister {
 
         LANTERN_BERRY = registerWithItem("lantern_berry", LanternBerry::new);
 
+        LANTERN_BERRY_PEEL = registerWithItem("lantern_berry_peel", () -> new Block(Block.Properties.of()
+                        .strength(1.0F)
+                        .sound(SoundType.MUD)
+                ));
+
         SUN_BERRY = registerWithItem("sun_berry", SunBerry::new);
 
-        GRASS_BLOCK = registerWithItem("grass_block", () -> new GrassBlock(BlockBehaviour.Properties.of().mapColor(MapColor.GRASS).randomTicks().strength(0.6F).sound(SoundType.GRASS)));
+        GRASS_BLOCK = registerWithItem("grass_block", () -> new GrassBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.GRASS_BLOCK)));
 
         // 群系核心
         BIOME_CORE = registerWithItem("biome_core", BiomeCore::new);
 
-        // 疯长的苔藓块
-        RAMPANT_MOSS = BLOCK.register("rampant_moss", RampantMoss::new);
 
         GARDEN_BEE_NEST = registerWithItem("garden_bee_nest", GardenBeeNest::new);
 

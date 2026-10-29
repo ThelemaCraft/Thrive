@@ -11,7 +11,7 @@ public class BiomeRegister {
     /** 花园群系的 ResourceKey */
     public static final ResourceKey<Biome> GARDEN = biome("garden");
     public static final ResourceKey<Biome> MOSS = biome("moss");
-
+    public static final ResourceKey<Biome> SUNBERRY = biome("sunberry");
 
     private static ResourceKey<Biome> biome(String name){
         return ResourceKey.create(Registries.BIOME,ResourceLocation.fromNamespaceAndPath(ThriveMod.MOD_ID, name));

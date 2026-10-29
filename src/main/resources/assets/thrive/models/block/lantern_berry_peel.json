@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:block/cube_all",
   "textures": {
-    "all": "minecraft:block/moss_block"
+    "all": "thrive:block/lantern_berry_peel"
   }
 }

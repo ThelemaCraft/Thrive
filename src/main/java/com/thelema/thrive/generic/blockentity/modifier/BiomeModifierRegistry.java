@@ -1,5 +1,8 @@
-package com.thelema.thrive.generic.blockentity.convertor;
+package com.thelema.thrive.generic.blockentity.modifier;
 
+import com.thelema.thrive.generic.blockentity.modifier.garden.ForestToGarden;
+import com.thelema.thrive.generic.blockentity.modifier.garden.Garden;
+import com.thelema.thrive.register.BlockRegister;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -46,5 +49,15 @@ public class BiomeModifierRegistry {
                 ResourceLocation.fromNamespaceAndPath("thrive", "forest_to_garden"),
                 Items.HONEY_BLOCK,
                 new ForestToGarden());
+
+        register(
+                ResourceLocation.fromNamespaceAndPath("thrive", "garden"),
+                Items.HONEY_BLOCK,
+                new Garden());
+
+        register(
+                ResourceLocation.fromNamespaceAndPath("thrive", "moss_to_sunberry"),
+                BlockRegister.SUN_BERRY.get().asItem(),
+                new MossToSunBerry());
     }
 }

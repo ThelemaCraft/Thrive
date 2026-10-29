@@ -1,7 +1,9 @@
 package com.thelema.thrive.register;
 
 import com.thelema.thrive.ThriveMod;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.Items;
@@ -27,13 +29,13 @@ public class PotionRegister {
     // ============ 牛奶 ============
     public static final DeferredHolder<Potion, Potion> MILK =
             POTION.register("milk", () -> new Potion("milk",
-                    new MobEffectInstance(EffectRegister.MILK, 900)));
+                    new MobEffectInstance(EffectRegister.MILK, 3600))); // 3min
     public static final DeferredHolder<Potion, Potion> LONG_MILK =
             POTION.register("long_milk", () -> new Potion("milk",
-                    new MobEffectInstance(EffectRegister.MILK, 1800)));
+                    new MobEffectInstance(EffectRegister.MILK, 9600))); // 8 min
     public static final DeferredHolder<Potion, Potion> SUPER_LONG_MILK =
             POTION.register("super_long_milk", () -> new Potion("milk",
-                    new MobEffectInstance(EffectRegister.MILK, 7200)));
+                    new MobEffectInstance(EffectRegister.MILK, 38400)));// 32min
 
     // ============ 迅捷 ============
     public static final DeferredHolder<Potion, Potion> SUPER_LONG_SWIFTNESS =
@@ -154,14 +156,14 @@ public class PotionRegister {
     // ============ 辅助 ============
 
     private static DeferredHolder<Potion, Potion> longP(String name, String base,
-                                                        net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effect,
+                                                        Holder<MobEffect> effect,
                                                         int srcDur) {
         return POTION.register(name, () -> new Potion(base,
                 new MobEffectInstance(effect, srcDur * 4)));
     }
 
     private static DeferredHolder<Potion, Potion> strongP(String name, String base,
-                                                          net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effect,
+                                                          Holder<MobEffect> effect,
                                                           int srcDur, int srcAmp) {
         return POTION.register(name, () -> new Potion(base,
                 new MobEffectInstance(effect, srcDur, srcAmp + 1)));
@@ -177,9 +179,9 @@ public class PotionRegister {
     public static void onRegisterBrewingRecipes(RegisterBrewingRecipesEvent event) {
         var b = event.getBuilder();
 
-        // 牛奶：红石延长 → 牡丹蜂蜜超长效
+        // 牛奶：粗制 + 奶桶 = 牛奶药水。红石延长 → 牡丹蜂蜜超长效
+        b.addMix(Potions.AWKWARD, Items.MILK_BUCKET, PotionRegister.MILK);
         b.addMix(MILK, Items.REDSTONE, LONG_MILK);
-        b.addMix(LONG_MILK, ItemRegister.PEONY_HONEY.get(), SUPER_LONG_MILK);
 
         // 1 蒲公英 → 缓降
         b.addMix(Potions.LONG_SLOW_FALLING, ItemRegister.DANDELION_HONEY.get(), SUPER_LONG_SLOW_FALLING);
@@ -215,8 +217,8 @@ public class PotionRegister {
         b.addMix(Potions.LONG_WEAKNESS, ItemRegister.OXEYE_DAISY_HONEY.get(), SUPER_LONG_WEAKNESS);
 
         // 11 矢车菊
-        //b.addMix(Potions.LONG_POISON, ItemRegister.CORNFLOWER_HONEY.get(), SUPER_LONG_POISON);
-        //b.addMix(Potions.STRONG_POISON, ItemRegister.CORNFLOWER_HONEY.get(), SUPER_STRONG_POISON);
+        b.addMix(Potions.LONG_SWIFTNESS, ItemRegister.CORNFLOWER_HONEY.get(), SUPER_LONG_SWIFTNESS);
+        b.addMix(Potions.STRONG_SWIFTNESS, ItemRegister.CORNFLOWER_HONEY.get(), SUPER_STRONG_SWIFTNESS);
 
         // 12 铃兰 → 剧毒
         b.addMix(Potions.LONG_POISON, ItemRegister.LILY_OF_THE_VALLEY_HONEY.get(), SUPER_LONG_POISON);
@@ -236,7 +238,8 @@ public class PotionRegister {
         // 16 丁香 → 蓄风
         b.addMix(Potions.WIND_CHARGED, ItemRegister.LILAC_HONEY.get(), SUPER_LONG_WIND_CHARGED);
 
-        // 17 牡丹 —— 空
+        // 17 牡丹 —— 牛奶
+        b.addMix(LONG_MILK, ItemRegister.PEONY_HONEY.get(), SUPER_LONG_MILK);
 
         // 18 玫瑰丛 → 伤害
         b.addMix(Potions.STRONG_HARMING, ItemRegister.ROSE_BUSH_HONEY.get(), SUPER_STRONG_HARMING);
@@ -267,4 +270,5 @@ public class PotionRegister {
         // 26 孢子花 → 夜视
         b.addMix(Potions.LONG_NIGHT_VISION, ItemRegister.SPORE_BLOSSOM_HONEY.get(), SUPER_LONG_NIGHT_VISION);
     }
+
 }

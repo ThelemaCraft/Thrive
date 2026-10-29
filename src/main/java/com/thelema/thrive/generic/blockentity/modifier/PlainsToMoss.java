@@ -1,4 +1,4 @@
-package com.thelema.thrive.generic.blockentity.convertor;
+package com.thelema.thrive.generic.blockentity.modifier;
 
 import com.thelema.thrive.generic.blockentity.BiomeCoreBlockEntity;
 import com.thelema.thrive.generic.feature.Lake;

@@ -80,7 +80,7 @@ public class PrimedLanternBerry extends Entity implements TraceableEntity {
         this.setFuse(i);
         if (i <= 0) {
             if (!this.level().isClientSide) {
-                deflagrate(level(),this.blockPosition(), null, this);
+                deflagrate(level(),this.blockPosition(), null, this, 20.0F);
             }
             this.discard();
         } else {
@@ -88,7 +88,7 @@ public class PrimedLanternBerry extends Entity implements TraceableEntity {
         }
     }
 
-    public static void deflagrate(Level level, BlockPos pos, @Nullable LivingEntity owner, @Nullable Entity excludeEntity) {
+    public static void deflagrate(Level level, BlockPos pos, @Nullable LivingEntity owner, @Nullable Entity excludeEntity, float damage) {
 
         for (BlockPos blockPos : BlockPos.betweenClosed(pos.offset(-4, -4, -4), pos.offset(4, 4, 4))) {
             BlockState state = level.getBlockState(blockPos);
@@ -125,7 +125,7 @@ public class PrimedLanternBerry extends Entity implements TraceableEntity {
 
             sl.getEntitiesOfClass(LivingEntity.class, area).forEach(entity -> {
                 if (entity == excludeEntity) return;
-                Damage.hurt(entity, DamageTypes.ON_FIRE.location().toString(), 20.0F);
+                Damage.hurt(entity, DamageTypes.ON_FIRE.location().toString(), damage);
                 entity.setRemainingFireTicks(entity.getRemainingFireTicks() + 200);
             });
 

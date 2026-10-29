@@ -42,7 +42,6 @@ public class ItemRegister {
     public static final DeferredHolder<Item, Item> FRESH_GRASS_CAKE;
     public static final DeferredHolder<Item, Item> BIOME_TWIG;
     public static final DeferredHolder<Item, Item> WHISTLE;
-    public static final DeferredHolder<Item, Item> RAMPANT_MOSS;
     public static final DeferredHolder<Item, Item> GARDEN_BEE_SPAWN_EGG;
     public static final DeferredHolder<Item, Item> GARDEN_PILLAGER_SPAWN_EGG;
     public static final DeferredHolder<Item, Item> GARDEN_WITCH_SPAWN_EGG;
@@ -99,9 +98,6 @@ public class ItemRegister {
 
         WHISTLE = ITEM.register("whistle", Whistle::new);
 
-        // 方块物品，堆叠上限 1
-        RAMPANT_MOSS = ITEM.register("rampant_moss", () -> new BlockItem(BlockRegister.RAMPANT_MOSS.get(),
-                new Item.Properties().stacksTo(1)));
 
         GARDEN_BEE_SPAWN_EGG = ITEM.register("garden_bee_spawn_egg", () -> new DeferredSpawnEggItem(
                 EntityRegister.GARDEN_BEE,
