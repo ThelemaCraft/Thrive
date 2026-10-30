@@ -67,7 +67,6 @@ public class BiomeCore extends Block implements EntityBlock {
         if (!(level.getBlockEntity(pos) instanceof BiomeCoreBlockEntity be))
             return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
 
-        // 潜行右键：强制终止
         if (player.isShiftKeyDown() && !be.rotator.isEmpty()) {
             terminate(level, pos, be, player);
             return ItemInteractionResult.SUCCESS;
@@ -75,26 +74,44 @@ public class BiomeCore extends Block implements EntityBlock {
 
         Surface surface = be.surface;
 
-        // 空手取出
-        if (stack.isEmpty()) {
-            if (surface.isEmpty()) return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        // 有物品 → 尝试取下
+        if (!surface.isEmpty()) {
             ItemStack taken = surface.getStack().copy();
+            if (!giveToSelectedSlot(player, taken)) return ItemInteractionResult.FAIL;  // 背包满，不动
             surface.clear();
-            if (!player.getInventory().add(taken)) player.drop(taken, false);
             level.playSound(null, pos, SoundEvents.ITEM_FRAME_REMOVE_ITEM,
                     SoundSource.BLOCKS, 0.75F, 1.0F);
             return ItemInteractionResult.SUCCESS;
         }
 
-        // 放入 / 替换
-        ItemStack taken = surface.getStack().copy();
-        surface.set(stack.copy(), player.getDirection());
-        if (!player.isCreative()) stack.setCount(0);
-        if (!taken.isEmpty() && !player.getInventory().add(taken)) player.drop(taken, false);
-        level.playSound(null, pos, SoundEvents.ITEM_FRAME_ADD_ITEM,
-                SoundSource.BLOCKS, 0.75F, 1.0F);
-        be.checkTimer = 100;
-        return ItemInteractionResult.SUCCESS;
+        // 空 → 放上去
+        if (!stack.isEmpty()) {
+            surface.set(stack.copy(), player.getDirection());
+            if (!player.isCreative()) stack.setCount(0);
+            level.playSound(null, pos, SoundEvents.ITEM_FRAME_ADD_ITEM,
+                    SoundSource.BLOCKS, 0.75F, 1.0F);
+            be.checkTimer = 100;
+            return ItemInteractionResult.SUCCESS;
+        }
+
+        return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+    }
+
+    /** 优先塞入当前选中槽，能堆叠就堆叠，否则交给背包。全部失败返回 false，不做任何修改。 */
+    private static boolean giveToSelectedSlot(Player player, ItemStack stack) {
+        int slot = player.getInventory().selected;
+        ItemStack cur = player.getInventory().getItem(slot);
+
+        if (cur.isEmpty()) {
+            player.getInventory().setItem(slot, stack);
+            return true;
+        }
+        if (ItemStack.isSameItemSameComponents(cur, stack)
+                && cur.getCount() + stack.getCount() <= cur.getMaxStackSize()) {
+            cur.grow(stack.getCount());
+            return true;
+        }
+        return player.getInventory().add(stack);
     }
 
     private static void terminate(Level level, BlockPos pos, BiomeCoreBlockEntity be, Player player) {

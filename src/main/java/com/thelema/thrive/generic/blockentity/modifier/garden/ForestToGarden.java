@@ -2,19 +2,22 @@ package com.thelema.thrive.generic.blockentity.modifier.garden;
 
 import com.thelema.thrive.generic.blockentity.BiomeCoreBlockEntity;
 import com.thelema.thrive.generic.blockentity.modifier.BiomeModifier;
-import net.minecraft.core.Holder;
+import com.thelema.thrive.generic.blockentity.modifier.Ring;
+import com.thelema.thrive.generic.blockentity.modifier.Succession;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.biome.Biome;
 
-import java.util.function.Predicate;
+import static com.thelema.thrive.generic.blockentity.modifier.BiomeUtil.*;
 
 public class ForestToGarden implements BiomeModifier {
 
     static final ResourceKey<Biome> SOURCE = ResourceKey.create(
             Registries.BIOME, ResourceLocation.withDefaultNamespace("forest"));
+
+    private static final Succession FOREST_TO_GARDEN = new Succession(SOURCE, GardenHelper.TARGET);
 
     @Override
     public boolean canUse(ServerLevel level, BiomeCoreBlockEntity be) {
@@ -22,35 +25,29 @@ public class ForestToGarden implements BiomeModifier {
     }
 
     @Override
-    public void tick(ServerLevel level, BiomeCoreBlockEntity be) {
-        long tick = tick(be);
-        int ring = (int) (tick / GardenHelper.TICKS_PER_RING);
-        var inRange = (Predicate<Holder<Biome>>) b -> b.is(SOURCE) || b.is(GardenHelper.TARGET);
-
-        if (tick % GardenHelper.TICKS_PER_RING == 0) {
-            if (ring <= GardenHelper.MAX_RING) {
-                rewriteBiome(level, be, ring, SOURCE, GardenHelper.TARGET);
-            }
-            int r1 = ring - GardenHelper.CLEAR_DELAY;
-            if (r1 >= 0 && r1 <= GardenHelper.MAX_RING) {
-                GardenHelper.processClear(this, level, be, r1, inRange);
-            }
-            int r2 = ring - GardenHelper.GARDEN_DELAY;
-            if (r2 >= 0 && r2 <= GardenHelper.MAX_RING) {
-                GardenHelper.processGarden(this, level, be, r2, inRange);
-            }
-            int r3 = ring - GardenHelper.BONE_MEAL_DELAY;
-            if (r3 >= 0 && r3 <= GardenHelper.MAX_RING) {
-                GardenHelper.processBoneMeal(this, level, be, r3);
-            }
-        }
-        if (tick % 10 == 0) flushDirty(level, be);
-        if (ring >= GardenHelper.MAX_RING + GardenHelper.BONE_MEAL_DELAY + 1) {
-            flushDirty(level, be);
-            be.resetConversion();
+    public boolean tick(ServerLevel level, BiomeCoreBlockEntity be) {
+        int phase = getPhase(be);
+        if (phase >= GardenHelper.PHASE_DONE) {
             replaceStructure(level, be, GardenHelper.TREE_GARDEN);
-            return;
+            return true;
         }
-        advanceTick(be);
+
+        if (phase == GardenHelper.PHASE_REWRITE) {
+            boolean done = forBS(be, Ring.DEFAULT, FOREST_TO_GARDEN);
+            if (done) nextPhase(be);
+            return false;
+        }
+
+        boolean done = forPos(be, Ring.DEFAULT, (b, p) -> {
+            if (level.getBiome(p).is(GardenHelper.TARGET)) return;
+            switch (phase) {
+                case GardenHelper.PHASE_PREPARE -> GardenHelper.clear(level, p);
+                case GardenHelper.PHASE_GARDEN -> GardenHelper.garden(level, be, p);
+                case GardenHelper.PHASE_BONE_MEAL -> GardenHelper.boneMeal(level, be, p);
+            }
+        });
+
+        if (done) nextPhase(be);
+        return false;
     }
 }

@@ -6,18 +6,31 @@ import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.register.FluidRegister;
 import net.minecraft.client.Camera;
 import net.minecraft.client.renderer.FogRenderer;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.resources.ResourceLocation;
-import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
 import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 
 @EventBusSubscriber(modid = ThriveMod.MOD_ID)
-public class ClientFluidRegister {
+public class FluidClientRegister {
+
+    @SubscribeEvent
+    public static void onClientSetup(FMLClientSetupEvent event) {
+        event.enqueueWork(() -> {
+            ItemBlockRenderTypes.setRenderLayer(
+                    FluidRegister.LANTERN_BERRY_JUICE_STILL.get(), RenderType.translucent());
+            ItemBlockRenderTypes.setRenderLayer(
+                    FluidRegister.LANTERN_BERRY_JUICE_FLOWING.get(), RenderType.translucent());
+        });
+    }
 
     @SubscribeEvent
     public static void register(RegisterClientExtensionsEvent event) {
+
         event.registerFluidType(new IClientFluidTypeExtensions() {
             @Override
             public ResourceLocation getStillTexture() {
@@ -30,7 +43,7 @@ public class ClientFluidRegister {
             }
             @Override
             public int getTintColor() {
-                return 0xFFFF33;
+                return 0xC0FFDD33;
             }
             @Override
             public void modifyFogRender(Camera camera, FogRenderer.FogMode mode, float renderDistance,

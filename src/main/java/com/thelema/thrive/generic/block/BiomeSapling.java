@@ -26,20 +26,22 @@ import java.util.Optional;
 
 public class BiomeSapling extends SaplingBlock {
 
-    /** 保底结构：未注册的群系（如 mod 群系）也至少能长出一棵树。 */
+    /**
+     * 保底结构：未注册的群系（如 mod 群系）也至少能长出一棵树。
+     */
     public static final ResourceLocation FALLBACK_TREE = ResourceLocation.fromNamespaceAndPath("thrive", "biome_core_tree_plains");
 
     public static Map<ResourceLocation, ResourceLocation> MAP = new HashMap<>();
 
-    public static void register(String id, String loc){
+    public static void register(String id, String loc) {
         MAP.put(ResourceLocation.parse(id), ResourceLocation.parse(loc));
     }
 
     static {
         register("minecraft:forest", "thrive:biome_core_tree_forest");
         register("minecraft:plains", "thrive:biome_core_tree_plains");
-        register("thrive:garden",     "thrive:biome_core_tree_garden");
-        register("thrive:moss",       "thrive:biome_core_tree_moss");
+        register("thrive:garden", "thrive:biome_core_tree_garden");
+        register("thrive:moss", "thrive:biome_core_tree_moss");
     }
 
     public static ResourceLocation treeStructureFor(Holder<Biome> biome) {

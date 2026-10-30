@@ -20,37 +20,30 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
-import java.util.HashSet;
-import java.util.Set;
+import static com.thelema.thrive.generic.blockentity.modifier.BiomeUtil.runTick;
 
 public class BiomeCoreBlockEntity extends BlockEntity {
 
     public final Surface surface = new Surface(this);
     public final Rotator rotator = new Rotator(this);
 
-    /** Surface 放入物品后启动的抽取倒计时（tick）。0 = 未启动。 */
+    /**
+     * Surface 放入物品后启动的抽取倒计时（tick）。0 = 未启动。
+     */
     public int checkTimer;
 
-    /** 当前运行的转换器 id。null = 空闲。 */
+    /**
+     * 当前运行的转换器 id。null = 空闲。
+     */
     public ResourceLocation activeBiomeModifierId;
 
-    /** 待重发 chunk 集合。本会话有效，不存 NBT。 */
-    public final Set<Long> dirty = new HashSet<>();
-    /** 通用NBT */
+    /**
+     * 通用NBT
+     */
     public final CompoundTag data = new CompoundTag();
 
     public BiomeCoreBlockEntity(BlockPos pos, BlockState state) {
         super(BlockEntityRegister.BIOME_CORE.get(), pos, state);
-    }
-
-    public int minY() {
-        int sectionMin = (worldPosition.getY() >> 4) << 4;
-        return Math.max(sectionMin - 32, level.getMinBuildHeight());
-    }
-
-    public int maxY() {
-        int sectionMin = (worldPosition.getY() >> 4) << 4;
-        return Math.min(sectionMin + 47, level.getMaxBuildHeight() - 1);
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, BiomeCoreBlockEntity be) {
@@ -71,8 +64,12 @@ public class BiomeCoreBlockEntity extends BlockEntity {
         }
         // 转换中
         if (!be.rotator.isEmpty()) {
-            BiomeModifier c = BiomeModifierRegistry.get(be.activeBiomeModifierId);
-            if (c != null) c.tick((ServerLevel) level, be);
+            BiomeModifier c = be.activeBiomeModifierId == null
+                    ? null
+                    : BiomeModifierRegistry.get(be.activeBiomeModifierId);
+            if (c != null && runTick(c, (ServerLevel) level, be)) {
+                be.resetConversion();     // runTick 返回 true → 转换器自己收尾了，BE 清状态
+            }
             return;
         }
 
@@ -104,7 +101,9 @@ public class BiomeCoreBlockEntity extends BlockEntity {
         be.activeBiomeModifierId = chosenId;
     }
 
-    /** 清空转换状态：Rotator、计时、进度、转换器 id。 */
+    /**
+     * 清空转换状态：Rotator、计时、进度、转换器 id。
+     */
     public void resetConversion() {
         rotator.clear();
         checkTimer = 0;

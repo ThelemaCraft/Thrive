@@ -2,6 +2,8 @@ package com.thelema.thrive.generic.blockentity.modifier.garden;
 
 import com.thelema.thrive.generic.blockentity.BiomeCoreBlockEntity;
 import com.thelema.thrive.generic.blockentity.modifier.BiomeModifier;
+import com.thelema.thrive.generic.blockentity.modifier.Ring;
+import com.thelema.thrive.generic.blockentity.modifier.Succession;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -9,8 +11,13 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
+
+import static com.thelema.thrive.generic.blockentity.modifier.BiomeUtil.*;
 
 public class Garden implements BiomeModifier {
+
+    private static final Succession TO_GARDEN = new Succession(null, GardenHelper.TARGET);
 
     @Override
     public boolean canUse(ServerLevel level, BiomeCoreBlockEntity be) {
@@ -18,57 +25,70 @@ public class Garden implements BiomeModifier {
     }
 
     @Override
-    public void tick(ServerLevel level, BiomeCoreBlockEntity be) {
-        long tick = tick(be);
-        int ring = (int) (tick / GardenHelper.TICKS_PER_RING);
-
-        if (tick % GardenHelper.TICKS_PER_RING == 0) {
-            if (ring <= GardenHelper.MAX_RING) {
-                rewriteBiomeAll(level, be, ring, GardenHelper.TARGET);
-            }
-            int r1 = ring - GardenHelper.CLEAR_DELAY;
-            if (r1 >= 0 && r1 <= GardenHelper.MAX_RING) {
-                GardenHelper.processClear(this, level, be, r1, b -> true);
-                processSurface(level, be, r1);
-            }
-            int r2 = ring - GardenHelper.GARDEN_DELAY;
-            if (r2 >= 0 && r2 <= GardenHelper.MAX_RING) {
-                GardenHelper.processGarden(this, level, be, r2, b -> true);
-            }
-            int r3 = ring - GardenHelper.BONE_MEAL_DELAY;
-            if (r3 >= 0 && r3 <= GardenHelper.MAX_RING) {
-                GardenHelper.processBoneMeal(this, level, be, r3);
-            }
-        }
-        if (tick % 10 == 0) flushDirty(level, be);
-        if (ring >= GardenHelper.MAX_RING + GardenHelper.BONE_MEAL_DELAY + 1) {
-            flushDirty(level, be);
-            be.resetConversion();
+    public boolean tick(ServerLevel level, BiomeCoreBlockEntity be) {
+        int phase = getPhase(be);
+        if (phase >= GardenHelper.PHASE_DONE) {
             replaceStructure(level, be, GardenHelper.TREE_GARDEN);
+            return true;
+        }
+
+        if (phase == GardenHelper.PHASE_REWRITE) {
+            boolean done = forBS(be, Ring.DEFAULT, TO_GARDEN);
+            if (done) nextPhase(be);
+            return false;
+        }
+
+        boolean done = forPos(be, Ring.DEFAULT, (b, p) -> {
+            if (level.getBiome(p).is(GardenHelper.TARGET)) return;  // B 方案：入口判
+            switch (phase) {
+                case GardenHelper.PHASE_PREPARE -> {
+                    GardenHelper.clear(level, p);
+                    surface(level, p);
+                }
+                case GardenHelper.PHASE_GARDEN -> GardenHelper.garden(level, be, p);
+                case GardenHelper.PHASE_BONE_MEAL -> GardenHelper.boneMeal(level, be, p);
+            }
+        });
+        if (done) nextPhase(be);
+        return false;
+    }
+
+    // ───── 地表改造 ─────
+
+    void surface(ServerLevel level, BlockPos p) {
+        BlockState s = level.getBlockState(p);
+        if (s.isAir() || !s.getFluidState().isEmpty()) return;
+        if (!isNaturalTerrain(s)) return;
+
+        // ① 上方空气 → 草
+        int surfaceY = level.getHeight(Heightmap.Types.WORLD_SURFACE, p.getX(), p.getZ());
+        if (p.getY() >= surfaceY - 1 && level.getBlockState(p.above()).isAir()) {
+            set(level, p, Blocks.GRASS_BLOCK.defaultBlockState());
+            markDirty(level, p);
             return;
         }
-        advanceTick(be);
-    }
 
-    /** 暴露的自然地形 → 草地。 */
-    void processSurface(ServerLevel level, BiomeCoreBlockEntity be, int r) {
-        BlockState grass = Blocks.GRASS_BLOCK.defaultBlockState();
-        forRing(level, be, r, (p, s) -> {
-            if (s.isAir()) return;
-            if (!s.getFluidState().isEmpty()) return;
-            if (!isNaturalTerrain(s)) return;
-            if (!isExposed(level, p)) return;
-            set(level, p, grass);
-            markDirty(be, p);
-        });
-    }
-
-    static boolean isExposed(ServerLevel level, BlockPos p) {
-        for (Direction d : Direction.values()) {
-            BlockState ns = level.getBlockState(p.relative(d));
-            if (ns.isAir()) return true;
-            if (!ns.canOcclude()) return true;
+        // ② 侧面裸漏 → 泥土
+        if (hasAirSide(level, p)) {
+            set(level, p, Blocks.DIRT.defaultBlockState());
+            markDirty(level, p);
+            return;
         }
+        // ③ 深层沙/砂岩，仅地表下 SAND_DEPTH 格内
+        int depth = level.getHeight(Heightmap.Types.WORLD_SURFACE, p.getX(), p.getZ()) - p.getY();
+        if (depth < 1 || depth > GardenHelper.SAND_DEPTH) return;
+        if (s.is(BlockTags.SAND)) {
+            set(level, p, Blocks.DIRT.defaultBlockState());
+            markDirty(level, p);
+        } else if (s.is(Blocks.SANDSTONE) || s.is(Blocks.RED_SANDSTONE)) {
+            set(level, p, Blocks.STONE.defaultBlockState());
+            markDirty(level, p);
+        }
+    }
+
+    static boolean hasAirSide(ServerLevel level, BlockPos p) {
+        for (Direction d : Direction.Plane.HORIZONTAL)
+            if (level.getBlockState(p.relative(d)).isAir()) return true;
         return false;
     }
 
@@ -78,6 +98,7 @@ public class Garden implements BiomeModifier {
                 || s.is(BlockTags.BASE_STONE_OVERWORLD)
                 || s.is(BlockTags.BASE_STONE_NETHER)
                 || s.is(BlockTags.TERRACOTTA)
+                || b == Blocks.END_STONE
                 || s.is(BlockTags.SNOW) || s.is(BlockTags.ICE)
                 || b == Blocks.GRAVEL || b == Blocks.CLAY || b == Blocks.MUD
                 || b == Blocks.CALCITE || b == Blocks.DRIPSTONE_BLOCK
