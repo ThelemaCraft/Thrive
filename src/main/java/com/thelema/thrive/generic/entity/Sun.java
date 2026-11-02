@@ -2,6 +2,7 @@ package com.thelema.thrive.generic.entity;
 
 import com.thelema.thrive.generic.tool.Damage;
 import com.thelema.thrive.register.EffectRegister;
+import com.thelema.thrive.register.constant.DamageTypeConstant;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -149,7 +150,7 @@ public class Sun extends Entity {
             if (target.is(this)) continue;
             if (target.position().distanceTo(center) > RADIUS) continue;
 
-            Damage.hurt(target, "thrive:sun", DAMAGE_AMOUNT);
+            Damage.hurt(target, DamageTypeConstant.SUN, DAMAGE_AMOUNT);
 
             int newFire = Math.min(target.getRemainingFireTicks() + FIRE_TICKS_PER_HIT, FIRE_TICKS_MAX);
             target.setRemainingFireTicks(newFire);

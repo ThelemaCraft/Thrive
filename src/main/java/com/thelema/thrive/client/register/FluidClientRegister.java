@@ -43,7 +43,7 @@ public class FluidClientRegister {
             }
             @Override
             public int getTintColor() {
-                return 0xC0FFDD33;
+                return 0xFFFFDD33;
             }
             @Override
             public void modifyFogRender(Camera camera, FogRenderer.FogMode mode, float renderDistance,

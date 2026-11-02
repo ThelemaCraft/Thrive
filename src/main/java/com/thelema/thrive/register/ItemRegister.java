@@ -2,21 +2,19 @@ package com.thelema.thrive.register;
 
 import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.generic.item.BiomeTwig;
+import com.thelema.thrive.generic.item.BreezeSword;
 import com.thelema.thrive.generic.item.HungerSnack;
 import com.thelema.thrive.generic.item.Whistle;
-import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.food.Foods;
-import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.HoneyBottleItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.DeferredSpawnEggItem;
 import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 public class ItemRegister {
@@ -31,7 +29,9 @@ public class ItemRegister {
         return ITEM.register(name, () -> new Item(new Item.Properties()));
     }
 
-    /** 蜂蜜：食物属性与原版蜂蜜瓶完全一致。 */
+    /**
+     * 蜂蜜：食物属性与原版蜂蜜瓶完全一致。
+     */
     private static DeferredHolder<Item, Item> honeyItem(String name) {
         return ITEM.register(name, () -> new HoneyBottleItem(new Item.Properties().craftRemainder(Items.GLASS_BOTTLE).food(Foods.HONEY_BOTTLE).stacksTo(16)));
     }
@@ -42,9 +42,14 @@ public class ItemRegister {
     public static final DeferredHolder<Item, Item> FRESH_GRASS_CAKE;
     public static final DeferredHolder<Item, Item> BIOME_TWIG;
     public static final DeferredHolder<Item, Item> WHISTLE;
+    public static final DeferredHolder<Item, Item> BREEZE_SWORD;
+
+    // 生物蛋
     public static final DeferredHolder<Item, Item> GARDEN_BEE_SPAWN_EGG;
     public static final DeferredHolder<Item, Item> GARDEN_PILLAGER_SPAWN_EGG;
     public static final DeferredHolder<Item, Item> GARDEN_WITCH_SPAWN_EGG;
+    public static final DeferredHolder<Item, Item> BREEZE_CORE_SPAWN_EGG;
+
 
     // 每种原版花对应的蜂蜜
     public static final DeferredHolder<Item, Item> DANDELION_HONEY;
@@ -98,6 +103,8 @@ public class ItemRegister {
 
         WHISTLE = ITEM.register("whistle", Whistle::new);
 
+        BREEZE_SWORD = ITEM.register("breeze_sword", BreezeSword::new);
+
 
         GARDEN_BEE_SPAWN_EGG = ITEM.register("garden_bee_spawn_egg", () -> new DeferredSpawnEggItem(
                 EntityRegister.GARDEN_BEE,
@@ -118,6 +125,13 @@ public class ItemRegister {
                         EntityRegister.GARDEN_WITCH,
                         0x3F2A56,   // 底色，深紫
                         0x86C06C,   // 高光色，叶绿
+                        new Item.Properties()));
+
+        BREEZE_CORE_SPAWN_EGG = ITEM.register("breeze_core_spawn_egg",
+                () -> new DeferredSpawnEggItem(
+                        EntityRegister.BREEZE_CORE,
+                        0x4F7A9E,   // 底色：深青灰（风核的暗部）
+                        0xC8E6F0,   // 斑点：浅冰蓝（旋风的亮部）
                         new Item.Properties()));
 
         // 花朵蜂蜜

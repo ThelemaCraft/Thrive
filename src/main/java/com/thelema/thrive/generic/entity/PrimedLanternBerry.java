@@ -125,7 +125,7 @@ public class PrimedLanternBerry extends Entity implements TraceableEntity {
 
             sl.getEntitiesOfClass(LivingEntity.class, area).forEach(entity -> {
                 if (entity == excludeEntity) return;
-                Damage.hurt(entity, DamageTypes.ON_FIRE.location().toString(), damage);
+                Damage.hurt(entity, DamageTypes.ON_FIRE, damage);
                 entity.setRemainingFireTicks(entity.getRemainingFireTicks() + 200);
             });
 

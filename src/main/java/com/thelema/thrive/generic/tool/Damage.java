@@ -52,18 +52,17 @@ public final class Damage {
                         ds.getSourcePosition(), v));
     }
 
-    public static void hurt(LivingEntity target, String type, float v) {
+    public static void hurt(LivingEntity target, ResourceKey<DamageType> type, float v) {
         hurt(target, type, null, null, null, v);
     }
 
-    public static void hurt(LivingEntity target, String type,
+    public static void hurt(LivingEntity target, ResourceKey<DamageType> type,
                             @Nullable Entity direct,
                             @Nullable Entity causing,
                             @Nullable Vec3 pos,
                             float v) {
-        var key = ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.parse(type));
         Holder<DamageType> holder = target.level().registryAccess()
-                .lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(key);
+                .lookupOrThrow(Registries.DAMAGE_TYPE).getOrThrow(type);
         hurt(target, new DamageSource(holder, direct, causing, pos), v);
     }
 

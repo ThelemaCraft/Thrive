@@ -2,6 +2,7 @@ package com.thelema.thrive.register;
 
 import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.generic.entity.*;
+import com.thelema.thrive.generic.entity.projectile.WindBlade;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.*;
@@ -42,6 +43,8 @@ public class EntityRegister {
     public static final DeferredHolder<EntityType<?>, EntityType<PrimedSunBerry>> PRIMED_SUN_BERRY;
     public static final DeferredHolder<EntityType<?>, EntityType<Sun>> SUN;
     public static final DeferredHolder<EntityType<?>, EntityType<GardenWitch>> GARDEN_WITCH;
+    public static final DeferredHolder<EntityType<?>, EntityType<BreezeCore>> BREEZE_CORE;
+    public static final DeferredHolder<EntityType<?>, EntityType<WindBlade>> WIND_BLADE;
 
     static {
         MOSSY_ZOMBIE = ENTITIES.register("mossy_zombie", () -> EntityType.Builder.of(MossyZombie::new, MobCategory.MONSTER)
@@ -83,7 +86,7 @@ public class EntityRegister {
                 .build("primed_sun_berry"));
 
         SUN = ENTITIES.register("sun", () -> EntityType.Builder
-                .<Sun>of(Sun::new, MobCategory.MISC)
+                .of(Sun::new, MobCategory.MISC)
                 .sized(5.0f, 5.0f)
                 .fireImmune()
                 .clientTrackingRange(32)
@@ -95,6 +98,19 @@ public class EntityRegister {
                 .sized(0.6F, 1.95F)
                 .clientTrackingRange(8)
                 .build("garden_witch"));
+
+        BREEZE_CORE = ENTITIES.register("breeze_core", () -> EntityType.Builder
+                .of(BreezeCore::new, MobCategory.CREATURE)
+                .sized(1.0f, 1.0f)
+                .fireImmune()
+                .build("breeze_core"));
+
+        WIND_BLADE = ENTITIES.register("wind_blade", () -> EntityType.Builder
+                .<WindBlade>of(WindBlade::new, MobCategory.MISC)
+                .sized(0.4F, 0.4F)
+                .clientTrackingRange(4)
+                .updateInterval(10)
+                .build("wind_blade"));
     }
 
     // ========== 事件注册 ==========
@@ -106,6 +122,7 @@ public class EntityRegister {
         event.put(GARDEN_BEE.get(), GardenBee.createAttributes().build());
         event.put(GARDEN_PILLAGER.get(), GardenPillager.createAttributes().build());
         event.put(GARDEN_WITCH.get(), GardenWitch.createAttributes().build());
+        event.put(BREEZE_CORE.get(), BreezeCore.createAttributes().build());
     }
 
     @SubscribeEvent
@@ -114,9 +131,10 @@ public class EntityRegister {
         event.register(LANTERN_BERRY_CREEPER.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Monster::checkMonsterSpawnRules, RegisterSpawnPlacementsEvent.Operation.REPLACE);
         event.register(GARDEN_PILLAGER.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Monster::checkMonsterSpawnRules, RegisterSpawnPlacementsEvent.Operation.REPLACE);
         event.register(GARDEN_WITCH.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Monster::checkMonsterSpawnRules, RegisterSpawnPlacementsEvent.Operation.REPLACE);
+        event.register(BREEZE_CORE.get(), SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Mob::checkMobSpawnRules, RegisterSpawnPlacementsEvent.Operation.REPLACE);
     }
 
-    // 允许生成在
+    // 允许一些生物生成在草丛，地毯这些地方
     @SubscribeEvent(priority = EventPriority.LOW)
     public static void allowSpawnOn(MobSpawnEvent.PositionCheck event) {
         Mob m = event.getEntity();
@@ -140,7 +158,9 @@ public class EntityRegister {
         }
     }
 
-    /** 注册完成前不能调用 DeferredHolder#get()，所以延迟到事件里再比较。 */
+    /**
+     * 注册完成前不能调用 DeferredHolder#get()，所以延迟到事件里再比较。
+     */
     private static boolean isOurMob(EntityType<?> type) {
         return type == MOSSY_ZOMBIE.get()
                 || type == LANTERN_BERRY_CREEPER.get()

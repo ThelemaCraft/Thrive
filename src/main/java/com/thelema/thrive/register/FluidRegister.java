@@ -56,6 +56,7 @@ public class FluidRegister {
                             .temperature(350)
                             .canConvertToSource(false)
                             .lightLevel(15)
+                            .supportsBoating(true)
                             .sound(SoundActions.BUCKET_FILL, SoundEvents.BUCKET_FILL)
                             .sound(SoundActions.BUCKET_EMPTY, SoundEvents.BUCKET_EMPTY)));
 

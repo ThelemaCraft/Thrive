@@ -21,6 +21,7 @@ import static com.thelema.thrive.register.ItemRegister.ITEM;
 public class BlockRegister {
 
     public static final DeferredRegister<Block> BLOCK = DeferredRegister.createBlocks(ThriveMod.MOD_ID);
+
     public static void register(IEventBus bus) {
         BLOCK.register(bus);
     }
@@ -43,6 +44,9 @@ public class BlockRegister {
     public static final DeferredHolder<Block, Block> BIOME_CORE;
     public static final DeferredHolder<Block, Block> GARDEN_BEE_NEST;
     public static final DeferredHolder<Block, Block> BIOME_SAPLING;
+    public static final DeferredHolder<Block, Block> CLOUD;
+    public static final DeferredHolder<Block, Block> WISPY_CLOUD;
+    public static final DeferredHolder<Block, Block> BREEZE_CORE;
 
     static {
 
@@ -58,9 +62,9 @@ public class BlockRegister {
         LANTERN_BERRY = registerWithItem("lantern_berry", LanternBerry::new);
 
         LANTERN_BERRY_PEEL = registerWithItem("lantern_berry_peel", () -> new Block(Block.Properties.of()
-                        .strength(1.0F)
-                        .sound(SoundType.MUD)
-                ));
+                .strength(1.0F)
+                .sound(SoundType.MUD)
+        ));
 
         SUN_BERRY = registerWithItem("sun_berry", SunBerry::new);
 
@@ -73,18 +77,17 @@ public class BlockRegister {
         GARDEN_BEE_NEST = registerWithItem("garden_bee_nest", GardenBeeNest::new);
 
         // 树苗的特性：无碰撞、一碰就碎、植物音效、允许随机刻
-        BIOME_SAPLING = registerWithItem("biome_sapling", () -> new BiomeSapling(
+        BIOME_SAPLING = registerWithItem("biome_sapling", BiomeSapling::new);
+
+        CLOUD = registerWithItem("cloud", Cloud::new);
+        WISPY_CLOUD = registerWithItem("wispy_cloud", Cloud::new);
+
+        BREEZE_CORE = registerWithItem("breeze_core", () -> new Block(
                 BlockBehaviour.Properties.of()
-                        .mapColor(MapColor.PLANT)
-                        .noCollission()
-                        .randomTicks()
-                        .instabreak()
-                        .sound(SoundType.GRASS)
+                        .strength(0.3F, 0.0F)
+                        .sound(SoundType.WOOL)
         ));
-
     }
-
-
 
 
 }

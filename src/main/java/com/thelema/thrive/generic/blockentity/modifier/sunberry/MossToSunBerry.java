@@ -5,7 +5,7 @@ import com.thelema.thrive.generic.blockentity.BiomeCoreBlockEntity;
 import com.thelema.thrive.generic.blockentity.modifier.BiomeModifier;
 import com.thelema.thrive.generic.blockentity.modifier.Ring;
 import com.thelema.thrive.generic.blockentity.modifier.Succession;
-import com.thelema.thrive.register.BiomeRegister;
+import com.thelema.thrive.register.constant.BiomeConstant;
 import com.thelema.thrive.register.BlockRegister;
 import com.thelema.thrive.register.FluidRegister;
 import net.minecraft.core.BlockPos;
@@ -43,7 +43,7 @@ public class MossToSunBerry implements BiomeModifier {
 
     static final ResourceKey<Biome> SOURCE = ResourceKey.create(
             Registries.BIOME, ResourceLocation.fromNamespaceAndPath("thrive", "moss"));
-    static final ResourceKey<Biome> TARGET = BiomeRegister.SUNBERRY;
+    static final ResourceKey<Biome> TARGET = BiomeConstant.SUNBERRY;
     static final ResourceLocation TREE_SUNBERRY =
             ResourceLocation.fromNamespaceAndPath("thrive", "biome_core_tree_sunberry");
 

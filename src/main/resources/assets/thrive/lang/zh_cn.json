@@ -11,13 +11,22 @@
   "block.thrive.biome_sapling": "群系树苗",
   "block.thrive.biome_core": "群系核心",
   "block.thrive.lantern_berry_peel": "灯笼浆果皮",
+  "block.thrive.cloud": "云块",
 
   "itemGroup.thrive": "繁荣",
 
   "item.thrive.lantern_berry_juice_bucket": "灯笼果汁桶",
   "item.thrive.biome_twig": "群系新枝",
   "item.thrive.whistle": "蜜蜂哨",
+  "item.thrive.breeze_sword": "旋风剑",
+
+
   "item.thrive.garden_bee_spawn_egg": "花园蜜蜂刷怪蛋",
+  "item.thrive.breeze_core_spawn_egg": "旋风核刷怪蛋",
+  "item.thrive.garden_pillager_spawn_egg": "花园掠夺者刷怪蛋",
+  "item.thrive.garden_witch_spawn_egg": "花园女巫刷怪蛋",
+
+
   "item.thrive.dandelion_honey": "蒲公英蜂蜜",
   "item.thrive.poppy_honey": "虞美人蜂蜜",
   "item.thrive.blue_orchid_honey": "兰花蜂蜜",
@@ -44,8 +53,7 @@
   "item.thrive.pink_petals_honey": "粉红色花簇蜂蜜",
   "item.thrive.chorus_flower_honey": "紫颂花蜂蜜",
   "item.thrive.spore_blossom_honey": "孢子花蜂蜜",
-  "item.thrive.garden_pillager_spawn_egg": "花园掠夺者刷怪蛋",
-  "item.thrive.garden_witch_spawn_egg": "花园女巫刷怪蛋",
+
 
   "item.minecraft.potion.effect.wither": "凋零药水",
   "item.minecraft.splash_potion.effect.wither": "喷溅型凋零药水",
@@ -68,8 +76,9 @@
   "effect.thrive.blinding": "炫目",
   "effect.thrive.milk": "牛奶",
 
-  "biome.thrive.moss_land": "苔藓地",
-  "biome.thrive.flower_sea": "花海",
+  "biome.thrive.moss": "苔藓",
+  "biome.thrive.garden": "花园",
+  "biome.thrive.cloud": "云层",
 
   "entity.thrive.primed_lantern_berry": "点燃的灯笼果",
   "entity.thrive.lantern_berry_creeper": "灯笼果苦力怕",
@@ -79,12 +88,17 @@
   "entity.thrive.garden_bee.follow": "花园蜜蜂：跟随",
   "entity.thrive.garden_pillager": "花园掠夺者",
   "entity.thrive.garden_witch": "花园女巫",
+  "entity.thrive.breeze_core": "旋风核",
+  "entity.thrive.wind_blade": "风刃",
 
-  "subtitles.thrive.sun_berry_ignite": "太阳浆果被点燃",
-  "subtitles.thrive.sun_berry_deflagrate": "太阳浆果爆燃",
+
+  "subtitles.thrive.sun_berry_ignite": "太阳浆果：被点燃",
+  "subtitles.thrive.sun_berry_deflagrate": "太阳浆果：爆燃",
 
   "death.attack.sun": "%1$s 被太阳焚化了",
   "death.attack.sun.player": "%1$s 被 %2$s 用太阳焚化了",
+  "death.attack.wind_ground": "%1$s 被旋风撕裂了",
+  "death.attack.wind_ground.player": "%1$s 被 %2$s 的旋风撕裂了",
 
 
   "config.jade.plugin_thrive.garden_bee_nest": "花园蜂巢",

@@ -2,12 +2,12 @@
 """16x16 像素画小工具。
 
 用法：
-    python pixelart.py whistle          # 生成 whistle.png + 预览
-    python pixelart.py whistle --out foo.png
-    python pixelart.py --list
+    python pixelart.py          # 为 SPRITES 里每个 key 生成 <key>.png + 预览
 
 画法：在 SPRITES 里加一条 16 行、每行 16 个字符的字符串。
 '.' 是透明，其余字符查 PALETTE。改一个字符就是改一个像素。
+
+输出位置：全部落在本脚本所在目录，与运行时 CWD 无关。
 """
 
 from pathlib import Path
@@ -31,28 +31,33 @@ PALETTE = {
     "B": (72, 108, 176, 255),   # 蓝
     "P": (124, 82, 142, 255),   # 紫
     "Y": (238, 202, 92, 255),   # 黄
+
+    # ── 云 ──
+    "w": (252, 253, 255, 255),  # 云白（主体）
+    "c": (232, 238, 250, 255),  # 云色（浅影）
+    "s": (206, 216, 234, 255),  # 云影（深部）
 }
 
 SPRITES = {
-    # 铜色哨子：圆哨体 + 右上吹嘴 + 顶部挂环 + 气孔
-    "whistle": [
-        ".....KK.........",
-        "....H..K........",
-        "....K..K........",
-        "....K..K........",
-        "....KKKK........",
-        "......K.........",
-        "...HHKLKKKKKKKK.",
-        "...HLKKLMDHLLLLK",
-        "..KLLKKLMDMMMMMK",
-        "..KMMMMMMMMKKKK.",
-        "..KMMMMMMMK.....",
-        "...KDDDDDK......",
-        "...KKDDDKK......",
-        ".....KKK........",
-        "................",
-        "................",
-    ],
+    
+    "whirlwind_sword": [
+            "................",
+            ".............KKK",
+            "............Kwwc",
+            "...........Kwwc.",
+            "..........Kwwcs.",
+            ".........Kwscs..",
+            "........Kwwcs...",
+            ".......Kwscs....",
+            "......Kwwcs.....",
+            ".....Kwscs......",
+            "....Kwwcs.......",
+            "...MYYYc........",
+            "....KDK.........",
+            "....KDK.........",
+            "....KDK.........",
+            "................",
+        ]
 }
 
 
@@ -74,31 +79,19 @@ def render(rows):
 
 
 def main():
-    import argparse
+    script_dir = Path(__file__).resolve().parent
 
-    parser = argparse.ArgumentParser(description="从字符网格生成 16x16 PNG")
-    parser.add_argument("name", nargs="?", help="SPRITES 里的名字")
-    parser.add_argument("--out", help="输出 PNG，默认 <name>.png")
-    parser.add_argument("--preview-dir", default="_dsh-research", help="放大预览目录")
-    parser.add_argument("--list", action="store_true", help="列出所有 sprite")
-    args = parser.parse_args()
+    for name, rows in SPRITES.items():
+        img = render(rows)
 
-    if args.list or not args.name:
-        print("sprites:", ", ".join(SPRITES))
-        return
+        out = script_dir / f"{name}.png"
+        img.save(out)
 
-    if args.name not in SPRITES:
-        raise SystemExit(f"没有 sprite: {args.name}，可选：{', '.join(SPRITES)}")
+        preview = script_dir / f"{name}_preview.png"
+        img.resize((SIZE * SCALE, SIZE * SCALE), Image.NEAREST).save(preview)
 
-    img = render(SPRITES[args.name])
-    out = Path(args.out or f"{args.name}.png")
-    img.save(out)
-
-    preview_dir = Path(args.preview_dir)
-    preview_dir.mkdir(parents=True, exist_ok=True)
-    preview = preview_dir / f"{out.stem}_preview.png"
-    img.resize((SIZE * SCALE, SIZE * SCALE), Image.NEAREST).save(preview)
-    print(f"wrote {out} ({SIZE}x{SIZE}) and {preview}")
+        print(f"wrote {out}")
+        print(f"wrote {preview}")
 
 
 if __name__ == "__main__":

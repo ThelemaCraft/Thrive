@@ -1,7 +1,7 @@
 {
 	"format_version": "1.8.0",
 	"animations": {
-		"animation.creeper.idle": {
+		"idle": {
 			"loop": true,
 			"animation_length": 1.5,
 			"bones": {
@@ -55,7 +55,7 @@
 				}
 			}
 		},
-		"animation.creeper.walk": {
+		"walk": {
 			"loop": true,
 			"animation_length": 0.7917,
 			"bones": {

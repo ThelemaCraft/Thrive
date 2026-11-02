@@ -11,6 +11,7 @@
   "block.thrive.grass_block": "Grass Block",
   "block.thrive.garden_bee_nest": "Garden Bee Nest",
   "block.thrive.lantern_berry_peel": "Lantern Berry Peel",
+  "block.thrive.cloud": "Cloud",
 
 
   "itemGroup.thrive": "Thrive",
@@ -21,7 +22,14 @@
   "item.thrive.fresh_grass_cake": "Fresh Grass Cake",
   "item.thrive.biome_twig": "Biome Twig",
   "item.thrive.whistle": "Bee Whistle",
+  "item.thrive.breeze_sword": "Breeze Sword",
+
+
   "item.thrive.garden_bee_spawn_egg": "Garden Bee Spawn Egg",
+  "item.thrive.breeze_core_spawn_egg": "Breeze Core Spawn Egg",
+  "item.thrive.garden_pillager_spawn_egg": "Garden Pillager Spawn Egg",
+  "item.thrive.garden_witch_spawn_egg": "Garden Witch Spawn Egg",
+
   "item.thrive.dandelion_honey": "Dandelion Honey",
   "item.thrive.poppy_honey": "Poppy Honey",
   "item.thrive.blue_orchid_honey": "Blue Orchid Honey",
@@ -48,8 +56,7 @@
   "item.thrive.pink_petals_honey": "Pink Petals Honey",
   "item.thrive.chorus_flower_honey": "Chorus Flower Honey",
   "item.thrive.spore_blossom_honey": "Spore Blossom Honey",
-  "item.thrive.garden_pillager_spawn_egg": "Garden Pillager Spawn Egg",
-  "item.thrive.garden_witch_spawn_egg": "Garden Witch Spawn Egg",
+
 
   "item.minecraft.potion.effect.wither": "Potion of Wither",
   "item.minecraft.splash_potion.effect.wither": "Splash Potion of Wither",
@@ -72,8 +79,9 @@
   "effect.thrive.blinding": "Blinding",
   "effect.thrive.milk": "Milk",
 
-  "biome.thrive.moss_land": "Moss Land",
-  "biome.thrive.flower_sea": "Flower Sea",
+  "biome.thrive.moss": "Moss",
+  "biome.thrive.garden": "Garden",
+  "biome.thrive.cloud": "Cloud",
 
   "entity.thrive.primed_lantern_berry": "Primed Lantern Berry",
   "entity.thrive.mossy_zombie": "Mossy Zombie",
@@ -86,12 +94,17 @@
   "entity.thrive.garden_bee.follow": "Garden Bee: Follow",
   "entity.thrive.garden_pillager": "Garden Pillager",
   "entity.thrive.garden_witch": "Garden Witch",
+  "entity.thrive.breeze_core": "Breeze Core",
+  "entity.thrive.wind_blade": "Wind Blade",
+
 
   "subtitles.thrive.sun_berry_ignite": "Sun Berry ignites",
   "subtitles.thrive.sun_berry_deflagrate": "Sun Berry deflagrates",
 
   "death.attack.sun": "%1$s was incinerated by the sun",
   "death.attack.sun.player": "%1$s was incinerated by %2$s",
+  "death.attack.wind_ground": "%1$s was torn apart by a whirlwind",
+  "death.attack.wind_ground.player": "%1$s was torn apart by %2$s's whirlwind",
 
 
   "config.jade.plugin_thrive.garden_bee_nest": "Garden Bee Nest",

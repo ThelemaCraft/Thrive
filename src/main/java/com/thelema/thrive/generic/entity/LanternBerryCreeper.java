@@ -46,9 +46,9 @@ public class LanternBerryCreeper extends Creeper implements GeoAnimatable {
 
     private <E extends GeoAnimatable> PlayState animate(AnimationState<E> event) {
         if (event.isMoving()) {
-            event.getController().setAnimation(RawAnimation.begin().thenLoop("animation.creeper.walk"));
+            event.getController().setAnimation(RawAnimation.begin().thenLoop("walk"));
         } else {
-            event.getController().setAnimation(RawAnimation.begin().thenLoop("animation.creeper.idle"));
+            event.getController().setAnimation(RawAnimation.begin().thenLoop("idle"));
         }
         return PlayState.CONTINUE;
     }

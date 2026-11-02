@@ -1,9 +1,7 @@
 package com.thelema.thrive.generic.biome;
 
 import com.thelema.thrive.ThriveMod;
-import com.thelema.thrive.generic.entity.GardenPillager;
-import com.thelema.thrive.generic.entity.GardenWitch;
-import com.thelema.thrive.register.BiomeRegister;
+import com.thelema.thrive.register.constant.BiomeConstant;
 import com.thelema.thrive.register.EntityRegister;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -77,7 +75,7 @@ public class Garden {
 
             if (!level.hasChunkAt(origin)) continue;
             // 核心：只需要生成点在花园群系即可
-            if (!level.getBiome(origin).is(BiomeRegister.GARDEN)) continue;
+            if (!level.getBiome(origin).is(BiomeConstant.GARDEN)) continue;
 
             // 忽略树叶，避免锚点落在树冠上
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, origin.getX(), origin.getZ());

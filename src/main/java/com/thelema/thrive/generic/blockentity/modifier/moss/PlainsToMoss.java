@@ -25,6 +25,7 @@ public class PlainsToMoss implements BiomeModifier {
     static final int PHASE_SURFACE = 1;
     static final int PHASE_LAKE = 2;
     static final int PHASE_DECO = 3;
+    static final int PHASE_DONE = 4;
 
     static final ResourceKey<Biome> SOURCE = ResourceKey.create(
             Registries.BIOME, ResourceLocation.withDefaultNamespace("plains"));
@@ -51,18 +52,23 @@ public class PlainsToMoss implements BiomeModifier {
 
     @Override
     public boolean tick(ServerLevel level, BiomeCoreBlockEntity be) {
-
         int phase = getPhase(be);
+
+        if (phase >= PHASE_DONE) {
+            replaceStructure(level, be, MossHelper.TREE_MOSS);
+            return true;
+        }
 
         boolean done = switch (phase) {
             case PHASE_REWRITE -> forBS(be, Ring.FAST_I, PLAINS_TO_MOSS);
             case PHASE_SURFACE -> forPos(be, Ring.FAST_I, (b, p) -> surface(level, p));
-            case PHASE_LAKE -> forPos(be, Ring.DEFAULT, lake(p -> true));
-            case PHASE_DECO -> forPos(be, Ring.FAST_I, (b, p) -> MossHelper.deco(level, p));
+            case PHASE_LAKE    -> forPos(be, Ring.DEFAULT, lake(p -> true));
+            case PHASE_DECO    -> forPos(be, Ring.FAST_I, (b, p) -> MossHelper.deco(level, p));
             default -> true;
         };
+
         if (done) nextPhase(be);
-        return getPhase(be) > PHASE_DECO;
+        return false;
     }
 
     static void surface(ServerLevel level, BlockPos p) {

@@ -3,14 +3,14 @@ import numpy as np
 from PIL import Image
 
 # ================= 配置区 =================
-TARGET_R = 230
-TARGET_G = 190
-TARGET_B = 70
+TARGET_R = 255
+TARGET_G = 255
+TARGET_B = 255
 
-BASE_LIGHTNESS = 0.5
+BASE_LIGHTNESS = 0.85
 
 # 对比度压缩 (0.0 ~ 1.0)。1.0 原始对比，越小越平。
-# 0.75 表示把原图亮度往中间压 25%，亮黄与黑的反差变小。
+# 0.75 保留云团层次，避免整片糊成高光。
 CONTRAST = 0.75
 # ==========================================
 

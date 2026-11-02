@@ -1,5 +1,6 @@
 package com.thelema.thrive.generic.blockentity.modifier;
 
+import com.thelema.thrive.ThriveMod;
 import com.thelema.thrive.generic.blockentity.modifier.garden.ForestToGarden;
 import com.thelema.thrive.generic.blockentity.modifier.garden.Garden;
 import com.thelema.thrive.generic.blockentity.modifier.moss.Moss;
@@ -27,9 +28,14 @@ public class BiomeModifierRegistry {
      * 注册。同一物品可注册多个修改器，调用顺序即 canUse 的尝试顺序。
      * 若想保持"通用优先"，先注册通用修改器即可。
      */
-    public static void register(ResourceLocation id, Item item, BiomeModifier modifier) {
+    public static void register(String namespace, String name, Item item, BiomeModifier modifier) {
+        ResourceLocation id = ResourceLocation.fromNamespaceAndPath(namespace, name);
         BY_ID.put(id, modifier);
         ITEM_TO_ID_LIST.computeIfAbsent(item, k -> new ArrayList<>()).add(id);
+    }
+
+    static void register(String name, Item item, BiomeModifier modifier){
+        register(ThriveMod.MOD_ID, name, item, modifier);
     }
 
     public static BiomeModifier get(ResourceLocation id) {
@@ -43,29 +49,18 @@ public class BiomeModifierRegistry {
     }
 
     static {
-        register(
-                ResourceLocation.fromNamespaceAndPath("thrive", "plains_to_moss"),
-                Items.MOSS_BLOCK,
-                new PlainsToMoss());
+        register("plains_to_moss", Items.MOSS_BLOCK, new PlainsToMoss());
 
-        register(
-                ResourceLocation.fromNamespaceAndPath("thrive", "moss"),
-                Items.MOSS_BLOCK,
-                new Moss());
+        register("moss", Items.MOSS_BLOCK, new Moss());
 
-        register(
-                ResourceLocation.fromNamespaceAndPath("thrive", "forest_to_garden"),
-                Items.HONEY_BLOCK,
-                new ForestToGarden());
+        register("forest_to_garden", Items.HONEY_BLOCK, new ForestToGarden());
 
-        register(
-                ResourceLocation.fromNamespaceAndPath("thrive", "garden"),
-                Items.HONEY_BLOCK,
-                new Garden());
+        register("garden", Items.HONEY_BLOCK, new Garden());
 
-        register(
-                ResourceLocation.fromNamespaceAndPath("thrive", "moss_to_sunberry"),
-                BlockRegister.SUN_BERRY.get().asItem(),
-                new MossToSunBerry());
+//        register(
+//                ResourceLocation.fromNamespaceAndPath("thrive", "moss_to_sunberry"),
+//                BlockRegister.SUN_BERRY.get().asItem(),
+//                new MossToSunBerry());
+
     }
 }

@@ -1,4 +1,4 @@
-package com.thelema.thrive.register;
+package com.thelema.thrive.register.constant;
 
 import com.thelema.thrive.ThriveMod;
 import net.minecraft.core.registries.Registries;
@@ -6,14 +6,14 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.biome.Biome;
 
-public class BiomeRegister {
+public interface BiomeConstant {
 
     /** 花园群系的 ResourceKey */
-    public static final ResourceKey<Biome> GARDEN = biome("garden");
-    public static final ResourceKey<Biome> MOSS = biome("moss");
-    public static final ResourceKey<Biome> SUNBERRY = biome("sunberry");
+    ResourceKey<Biome> GARDEN = biome("garden");
+    ResourceKey<Biome> MOSS = biome("moss");
+    ResourceKey<Biome> SUNBERRY = biome("sunberry");
 
-    private static ResourceKey<Biome> biome(String name){
+    static ResourceKey<Biome> biome(String name){
         return ResourceKey.create(Registries.BIOME,ResourceLocation.fromNamespaceAndPath(ThriveMod.MOD_ID, name));
     }
 }

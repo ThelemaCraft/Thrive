@@ -7,6 +7,9 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [
     "PlayerMixin",
+    "SkyLightEngineMixin",
+    "LightEngineMixin",
+    "LayerLightSectionStorageInvoker",
     "JigsawPlacementMixin",
     "CreeperMixin",
     "HealOrHarmMobEffectMixin",
